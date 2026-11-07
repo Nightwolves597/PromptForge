@@ -9,7 +9,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%231b3f95'/%3E%3Crect x='6' y='8' width='20' height='3' fill='%23e6e8e9'/%3E%3Crect x='6' y='15' width='13' height='3' fill='%23e6e8e9'/%3E%3Crect x='6' y='22' width='6' height='3' fill='%23e6e8e9'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400..700&display=swap" rel="stylesheet">
 
 <style>
 /* ------------------------------------------------------------------
@@ -29,15 +29,15 @@
   --accent-base:#1b3f95;
   --accent:var(--accent-base);
 
-  /* Apple system fonts first (SF Pro on iOS, iPadOS, macOS); Inter is the
-     closest lookalike and loads for Windows and Android */
-  --sans:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  /* Quicksand, with Apple system fonts as the fallback */
+  --sans:'Quicksand', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --mono:ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
 
   --bar:64px;
   --side:304px;
   --pad:clamp(20px,4vw,56px);
-  --r:2px;
+  --r:14px;
+  --r-lg:22px;
 }
 
 /* Night sky: dark tokens, and a lighter accent so it stays readable on dark */
@@ -57,7 +57,7 @@
 @media (min-width:961px){:root[data-theme="night"] .side{background:transparent}}
 
 /* Per-tab background pictures, cross-faded, with a dark scrim for reading */
-.bgs{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;background:#050810}
+.bgs{transform:translateZ(0);position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;background:#050810}
 .bgs i{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;transition:opacity .7s ease}
 .bgs i[data-k="shorten"]{background-image:url(/static/bg/shorten.jpg)}
 .bgs i[data-k="maker"]{background-image:url(/static/bg/maker.jpg)}
@@ -394,6 +394,33 @@ ins{color:var(--accent);text-decoration:underline;text-decoration-thickness:2px;
   .bar-val{display:none}
   .switch a{padding:9px 4px;font-size:.875rem;white-space:normal;line-height:1.2}
 }
+
+/* ---------- Glass surfaces and smooth squares ---------- */
+.sheet,.modes,.drop,.proof,.pal-pop,.hsearch,.select,.field-in,.tag-form input,.pal-btn,.h-toggle,.btn.ghost{border:0;background-color:rgba(10,14,30,.40);box-shadow:inset 0 0 0 1px rgba(255,255,255,.2),inset 0 1px 0 rgba(255,255,255,.34),0 8px 24px rgba(0,0,0,.22);-webkit-backdrop-filter:blur(10px) saturate(1.5);backdrop-filter:blur(10px) saturate(1.5)}
+.sheet,.modes,.drop,.proof,.pal-pop{border-radius:var(--r-lg)}
+.drop{border:1.5px dashed rgba(255,255,255,.35)}
+.select:hover,.pal-btn:hover,.h-toggle:hover{background-color:rgba(255,255,255,.12)}
+.btn.ghost{color:#fff;font-weight:600}
+.btn.ghost:hover:not(:disabled){background:rgba(255,255,255,.16);color:#fff}
+/* big surfaces skip the live backdrop blur (the picture behind is already dark and smooth), which is what kept scrolling smooth */
+.sheet,.drop,.proof{-webkit-backdrop-filter:none;backdrop-filter:none;background-color:rgba(10,14,30,.52)}
+textarea{font-family:var(--sans)}
+.modes{gap:6px;padding:6px}
+.modes label + label{border:0}
+.opt{border-radius:calc(var(--r-lg) - 8px)}
+.modes input:checked + .opt,:root[data-theme="night"] .modes input:checked + .opt{background:color-mix(in srgb,var(--accent) 42%,rgba(255,255,255,.08));color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.3),inset 0 1px 0 rgba(255,255,255,.45)}
+:root[data-theme="night"] .modes input:checked + .opt small{color:rgba(255,255,255,.82)}
+.tick input{border-radius:7px}
+.accent-swatch{border-radius:10px}
+.level input::-webkit-slider-thumb{border-radius:10px}
+.level input::-moz-range-thumb{border-radius:10px}
+
+/* dotted PromptForge mark */
+.mark{display:flex;align-items:center}
+.mark svg{display:block;height:34px;width:auto}
+.mark .a{fill:color-mix(in srgb,var(--accent) 45%,#fff)}
+.mark .b{fill:#fff}
+@media (max-width:640px){.mark svg{height:19px}}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none !important;transition:none !important}
 }
@@ -921,7 +948,8 @@ function updateReadout(){
     } catch { /* keep the estimate if the server is not reachable */ }
   }, 250);
 }
-promptEl.addEventListener('input', () => { updateReadout(); store.set('pf.draft.v1', promptEl.value); });
+let draftTimer = 0;
+promptEl.addEventListener('input', () => { updateReadout(); clearTimeout(draftTimer); draftTimer = setTimeout(() => store.set('pf.draft.v1', promptEl.value), 300); });
 promptEl.addEventListener('keydown', e => {
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); form.requestSubmit(); }
 });
@@ -2011,6 +2039,11 @@ const glass = (() => {
     const dc = mk(w, h), dx = dc.getContext('2d'), di = dx.createImageData(w, h);
     for (let y = 0; y < h; y++){
       for (let x = 0; x < w; x++){
+        if (x > bezel + 1 && x < w - bezel - 1 && y > bezel + 1 && y < h - bezel - 1){
+          const j = (y * w + x) * 4;
+          di.data[j] = 128; di.data[j + 1] = 128; di.data[j + 2] = 128; di.data[j + 3] = 255;
+          continue;
+        }
         const e = edge(x + 0.5 - w / 2, y + 0.5 - h / 2, w / 2, h / 2, r);
         let vx = 0, vy = 0;
         if (e.inside >= 0 && e.inside < bezel){
@@ -2028,7 +2061,9 @@ const glass = (() => {
     const lx = Math.cos(-Math.PI / 3), ly = Math.sin(-Math.PI / 3), rim = 2.4;
     for (let y = 0; y < H; y++){
       for (let x = 0; x < W; x++){
-        const e = edge((x + 0.5) / dpr - w / 2, (y + 0.5) / dpr - h / 2, w / 2, h / 2, r);
+        const cx = (x + 0.5) / dpr, cy = (y + 0.5) / dpr;
+        if (cx > rim + 2 && cx < w - rim - 2 && cy > rim + 2 && cy < h - rim - 2) continue;
+        const e = edge(cx - w / 2, cy - h / 2, w / 2, h / 2, r);
         let a = 0;
         if (e.inside >= -0.5 && e.inside < rim){
           const face = Math.abs(e.nx * lx + e.ny * ly);
@@ -2065,9 +2100,11 @@ const glass = (() => {
       const w = Math.round(el.offsetWidth), h = Math.round(el.offsetHeight);
       if (w < 8 || h < 8) return;
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const r = Math.min(h / 2, w / 2);
+      if (w * h > 60000) return;
+      const cr = parseFloat(getComputedStyle(el).borderTopLeftRadius) || h / 2;
+      const r = Math.min(cr, h / 2, w / 2);
       const bezel = Math.min(opts.bezel, r);
-      const k = [w, h, dpr].join('x');
+      const k = [w, h, r, dpr].join('x');
       if (k === key) return;
       key = k;
       const m = maps(w, h, r, bezel, dpr);
@@ -2095,9 +2132,43 @@ const glass = (() => {
 })();
 
 if (glass.on){
-  $$('.btn.glass').forEach(el => glass.attach(el, { bezel: 18, refraction: 1.1, blur: 0.4, saturate: 1.8 }));
-  $$('.switch').forEach(el => glass.attach(el, { bezel: 16, refraction: 1.0, blur: 0.4, saturate: 1.7 }));
+  [['.btn.glass', 18, 1.1], ['.switch', 16, 1.0], ['.modes', 22, 0.9],
+   ['.select', 14, 0.9], ['.hsearch', 14, 0.9], ['.field-in', 14, 0.9], ['.pal-btn', 14, 0.9],
+   ['.h-toggle', 14, 0.9], ['.btn.ghost', 14, 0.9], ['.pal-pop', 22, 0.9]]
+    .forEach(([sel, bezel, refraction]) => $$(sel).forEach(el => glass.attach(el, { bezel, refraction, blur: 0.4, saturate: 1.7 })));
 }
+
+/* ====================================================================
+   DOT-MATRIX LOGO: PromptForge drawn as round dots on a 5 x 9 grid
+==================================================================== */
+(() => {
+  const F = {
+    P: [0, '1111.', '1...1', '1...1', '1111.', '1....', '1....', '1....'],
+    F: [0, '11111', '1....', '1111.', '1....', '1....', '1....', '1....'],
+    r: [2, '1.11.', '11..1', '1....', '1....', '1....'],
+    o: [2, '.111.', '1...1', '1...1', '1...1', '.111.'],
+    m: [2, '11.1.', '1.1.1', '1.1.1', '1.1.1', '1.1.1'],
+    p: [2, '1.11.', '11..1', '1...1', '1...1', '1111.', '1....', '1....'],
+    t: [1, '.1...', '1111.', '.1...', '.1...', '.1..1', '..11.'],
+    g: [2, '.1111', '1...1', '1...1', '.1111', '....1', '1...1', '.111.'],
+    e: [2, '.111.', '1...1', '11111', '1....', '.111.']
+  };
+  const mark = $('.mark');
+  if (!mark) return;
+  const word = 'PromptForge', pitch = 3;
+  let col = 0, out = '';
+  [...word].forEach((ch, n) => {
+    const g = F[ch];
+    for (let r = 1; r < g.length; r++){
+      for (let c = 0; c < 5; c++){
+        if (g[r][c] === '1') out += '<circle class="' + (n < 6 ? 'a' : 'b') + '" cx="' + ((col + c) * pitch + pitch / 2) + '" cy="' + ((g[0] + r - 1) * pitch + pitch / 2) + '" r="1.35"/>';
+      }
+    }
+    col += 6;
+  });
+  const W = (col - 1) * pitch, H = 9 * pitch;
+  mark.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="PromptForge">' + out + '</svg>';
+})();
 
 /* ====================================================================
    ROUTER
