@@ -1,4 +1,4 @@
-# PSTS (PromptShortnerAndTokenSaver)
+# Prompt forge
 
 Paste a prompt, get a shorter one with the same meaning, and see the token counts before and after.
 Tokens are counted with OpenAI's tokenizer (tiktoken, o200k_base). Gemini does the shortening.
