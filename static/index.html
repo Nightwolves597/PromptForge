@@ -1,0 +1,2137 @@
+<!doctype html>
+<html lang="en" data-theme="night">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#050810">
+<title>Prompt Shortener | PromptForge</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%231b3f95'/%3E%3Crect x='6' y='8' width='20' height='3' fill='%23e6e8e9'/%3E%3Crect x='6' y='15' width='13' height='3' fill='%23e6e8e9'/%3E%3Crect x='6' y='22' width='6' height='3' fill='%23e6e8e9'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..800&display=swap" rel="stylesheet">
+
+<style>
+/* ------------------------------------------------------------------
+   Two proofing inks on cool grey paper. Blue marks what was added or
+   chosen, red marks what was cut or needs checking. No gradients, no
+   shadows, no glow. Hover only changes colour, and does it instantly.
+------------------------------------------------------------------- */
+:root{
+  --paper:color-mix(in srgb,var(--accent-base) 7%,#e6e8e9);
+  --field:color-mix(in srgb,var(--accent-base) 3%,#f2f3f3);
+  --ink:#161b20;
+  --mute:#485057;
+  --rule:rgba(22,27,32,.22);
+  --tint:rgba(22,27,32,.07);
+  --blue:#1b3f95;
+  --red:#a3271c;
+  --accent-base:#1b3f95;
+  --accent:var(--accent-base);
+
+  /* Apple system fonts first (SF Pro on iOS, iPadOS, macOS); Inter is the
+     closest lookalike and loads for Windows and Android */
+  --sans:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --mono:ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+
+  --bar:64px;
+  --side:304px;
+  --pad:clamp(20px,4vw,56px);
+  --r:2px;
+}
+
+/* Night sky: dark tokens, and a lighter accent so it stays readable on dark */
+:root[data-theme="night"]{
+  color-scheme:dark;
+  --paper:color-mix(in srgb,var(--accent-base) 10%,#050810);
+  --field:color-mix(in srgb,var(--accent-base) 13%,#0d1220);
+  --ink:#e8ecf5;
+  --mute:#a3adc0;
+  --rule:rgba(232,236,245,.2);
+  --tint:rgba(232,236,245,.09);
+  --red:#ff8f82;
+  --accent:color-mix(in srgb,var(--accent-base) 58%,#fff);
+}
+:root[data-theme="night"] .select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23e8ecf5' stroke-width='1.6'/%3E%3C/svg%3E")}
+:root[data-theme="night"] .modes input:checked + .opt small{color:rgba(5,8,16,.78)}
+@media (min-width:961px){:root[data-theme="night"] .side{background:transparent}}
+
+/* Per-tab background pictures, cross-faded, with a dark scrim for reading */
+.bgs{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;background:#050810}
+.bgs i{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;transition:opacity .7s ease}
+.bgs i[data-k="shorten"]{background-image:url(/static/bg/shorten.jpg)}
+.bgs i[data-k="maker"]{background-image:url(/static/bg/maker.jpg)}
+.bgs i[data-k="handoff"]{background-image:url(/static/bg/handoff.jpg)}
+body[data-bg="shorten"] .bgs i[data-k="shorten"],
+body[data-bg="maker"] .bgs i[data-k="maker"],
+body[data-bg="handoff"] .bgs i[data-k="handoff"]{opacity:1}
+.bgs::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(4,6,14,.50),rgba(4,6,14,.66))}
+
+*{box-sizing:border-box;margin:0}
+[hidden]{display:none !important}
+html{background:var(--paper);color:var(--ink);font:400 16px/1.55 var(--sans);-webkit-font-smoothing:antialiased;text-size-adjust:100%}
+body{min-height:100vh}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+::selection{background:var(--accent);color:var(--field)}
+
+/* ---------- Top bar ---------- */
+.bar{position:sticky;top:0;z-index:30;height:var(--bar);display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;padding:0 var(--pad);background:rgba(5,8,16,.55);border-bottom:1px solid rgba(255,255,255,.14)}
+.mark{justify-self:start;font:700 1.375rem/1 var(--sans);letter-spacing:-.02em;text-decoration:none;color:var(--accent)}
+
+.switch{display:inline-flex;gap:2px;padding:4px;border-radius:999px;background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(255,255,255,.22),inset 0 1px 0 rgba(255,255,255,.35),0 10px 30px rgba(0,0,0,.25);-webkit-backdrop-filter:blur(12px) saturate(1.7);backdrop-filter:blur(12px) saturate(1.7)}
+.switch a{padding:9px 22px;border-radius:999px;font-weight:600;text-decoration:none;white-space:nowrap;transition:background .2s,color .2s}
+.switch a:hover{background:rgba(255,255,255,.10)}
+.switch a[aria-current="page"]{background:rgba(255,255,255,.22);color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.3),inset 0 1px 0 rgba(255,255,255,.45),0 2px 8px rgba(0,0,0,.2)}
+
+/* Liquid glass buttons (main actions). Chromium gets the real refraction
+   from the SVG filter set up in script; everything else keeps this blur. */
+.btn.glass{position:relative;padding:15px 30px;border:0;border-radius:999px;color:#fff;font-weight:600;background:color-mix(in srgb,var(--accent) 32%,rgba(255,255,255,.05));box-shadow:inset 0 0 0 1px rgba(255,255,255,.3),inset 0 1px 0 rgba(255,255,255,.5),0 10px 28px rgba(0,0,0,.3);-webkit-backdrop-filter:blur(10px) saturate(1.8);backdrop-filter:blur(10px) saturate(1.8);transition:background .2s,box-shadow .2s}
+.btn.glass:hover:not(:disabled){background:color-mix(in srgb,var(--accent) 46%,rgba(255,255,255,.08));border:0}
+.btn.glass:active:not(:disabled){background:color-mix(in srgb,var(--accent) 55%,rgba(255,255,255,.1))}
+
+.bar-right{justify-self:end;display:flex;align-items:center;gap:16px;min-width:0}
+.health{display:flex;align-items:center;gap:8px;font-size:.875rem;color:var(--mute);white-space:nowrap}
+.pip{width:8px;height:8px;background:var(--mute)}
+.health.ok .pip{background:var(--accent)}
+.health.bad{color:var(--red)}
+.health.bad .pip{background:var(--red)}
+.h-toggle{display:none;padding:8px 14px;background:var(--field);border:1px solid var(--ink);border-radius:var(--r);font-weight:700}
+.h-toggle:hover{background:var(--tint)}
+
+/* ---------- Shell ---------- */
+.shell{display:grid;grid-template-columns:var(--side) minmax(0,1fr);align-items:start}
+
+/* ---------- History panel ---------- */
+.side{position:sticky;top:var(--bar);height:calc(100vh - var(--bar));overflow-y:auto;display:flex;flex-direction:column;padding:28px 24px 24px;border-right:1px solid var(--rule);background:var(--paper)}
+.side-head{display:flex;justify-content:space-between;align-items:baseline}
+.side h2{font:700 1.5rem/1 var(--sans);font-stretch:75%}
+.side-close{display:none;background:none;border:0;padding:4px 0;font-weight:700;text-decoration:underline}
+.h-sum{margin-top:10px;font-size:.875rem;line-height:1.45;color:var(--mute)}
+.hsearch{width:100%;margin-top:22px;padding:10px 12px;background:var(--field);border:1px solid var(--ink);border-radius:var(--r);font-size:.9375rem}
+.hsearch::placeholder{color:var(--mute)}
+.h-filter{display:flex;gap:18px;margin-top:14px;font-size:.875rem}
+.h-filter button{padding:0;background:none;border:0;border-radius:0;font-weight:600;color:var(--mute)}
+.h-filter button:hover{color:var(--ink)}
+.h-filter button[aria-pressed="true"]{color:var(--ink);text-decoration:underline;text-decoration-color:var(--accent);text-decoration-thickness:2px;text-underline-offset:5px}
+.runs{list-style:none;padding:0;margin-top:10px;border-top:1px solid var(--ink)}
+.run-item{padding:16px 0;border-bottom:1px solid var(--rule)}
+.run{display:block;width:100%;padding:0;text-align:left;background:none;border:0;border-radius:0}
+.run-text{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font:400 .875rem/1.5 var(--mono);overflow-wrap:anywhere}
+.run:hover .run-text{color:var(--accent)}
+.run-meta{display:block;margin-top:8px;font-size:.875rem;font-weight:700}
+.run-tags{margin-top:2px;font-size:.8125rem;color:var(--accent)}
+.run-foot{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-top:6px;font-size:.8125rem;color:var(--mute)}
+.run-foot .linkbtn{font-size:.8125rem;font-weight:600;color:var(--mute)}
+.run-foot .linkbtn:hover{color:var(--ink)}
+.run-edit{display:grid;gap:10px;justify-items:start;margin-top:12px;font-size:.875rem}
+.run-edit .linkbtn{font-size:.875rem}
+.tag-form{display:flex;gap:12px;align-items:center;width:100%}
+.tag-form input{flex:1;min-width:0;padding:7px 9px;background:var(--field);border:1px solid var(--ink);border-radius:var(--r);font-size:.875rem}
+.runs-empty{padding:18px 0;font-size:.9375rem;line-height:1.5;color:var(--mute)}
+.side-foot{margin-top:auto;padding-top:28px}
+.h-save{margin-top:0;font-size:.875rem}
+.side-foot .danger{display:block;margin-top:14px;font-size:.875rem}
+.side-foot nav{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:22px;padding-top:18px;border-top:1px solid var(--rule);font-size:.8125rem;color:var(--mute)}
+.linkbtn{display:inline;padding:0;background:none;border:0;border-radius:0;font-weight:600;text-decoration:underline;text-underline-offset:3px}
+.linkbtn:hover,.side-foot a:hover,.foot a:hover{color:var(--accent)}
+.linkbtn.danger:hover{color:var(--red)}
+
+/* colour popover in the top bar */
+.palette{position:relative}
+.pal-btn{display:flex;align-items:center;gap:9px;padding:8px 12px;background:var(--field);border:1px solid var(--ink);border-radius:var(--r);font-size:.875rem;font-weight:700}
+.pal-btn:hover{background:var(--tint)}
+.pal-dot{width:14px;height:14px;background:var(--accent);border:1px solid var(--ink)}
+.pal-pop{position:absolute;top:calc(100% + 8px);right:0;z-index:50;width:208px;padding:16px;background:var(--field);border:1px solid var(--ink);border-radius:var(--r)}
+.pal-pop p{margin-bottom:12px;font-size:.8125rem;font-weight:700}
+.accent-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.accent-swatch{height:32px;border:2px solid var(--rule);border-radius:var(--r);cursor:pointer;appearance:none;-webkit-appearance:none;outline-offset:2px}
+.accent-swatch:hover{opacity:.85}
+.accent-swatch.active{border-color:var(--ink);box-shadow:inset 0 0 0 2px var(--field)}
+
+/* ---------- Main ---------- */
+main{min-width:0;padding:clamp(28px,4vw,52px) var(--pad) 48px}
+.view{display:none;max-width:900px}
+.view.is-active{display:block}
+h1{font:700 clamp(2.25rem,5.4vw,3.75rem)/1.02 var(--sans);letter-spacing:-.03em}
+.lede{max-width:58ch;margin-top:18px;font-size:1.0625rem;line-height:1.6;color:var(--mute)}
+.head{margin-bottom:40px}
+
+.stack > * + *{margin-top:30px}
+.lab{display:block;margin-bottom:8px;font-weight:700}
+fieldset{border:0;padding:0;min-width:0}
+legend{padding:0}
+.hint{margin-top:8px;font-size:.875rem;color:var(--mute)}
+
+/* editor sheet */
+.sheet{background:var(--field);border:1px solid var(--ink);border-radius:var(--r)}
+.sheet:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+textarea{display:block;width:100%;min-height:220px;resize:vertical;background:transparent;border:0;border-radius:0;outline:0;padding:20px 22px;font:400 1rem/1.7 var(--mono)}
+textarea::placeholder{color:var(--mute)}
+textarea.sm{min-height:132px}
+.sheet-foot{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:10px 22px;border-top:1px solid var(--rule);font-size:.875rem;color:var(--mute)}
+.count b{margin-right:6px;font:700 1.75rem/1 var(--sans);color:var(--ink)}
+
+/* mode picker */
+.modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid var(--ink);border-radius:var(--r);background:var(--field)}
+.modes label{position:relative;display:block;cursor:pointer}
+.modes label + label{border-left:1px solid var(--ink)}
+.modes input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.opt{display:block;height:100%;padding:14px 16px 16px}
+.opt b{display:block;font-weight:700}
+.opt small{display:block;margin-top:4px;font-size:.875rem;line-height:1.4;color:var(--mute)}
+.modes label:hover .opt{background:var(--tint)}
+.modes input:checked + .opt{background:var(--accent);color:var(--field)}
+.modes input:checked + .opt small{color:rgba(241,242,242,.8)}
+.modes input:focus-visible + .opt{outline:2px solid var(--accent);outline-offset:-5px}
+.modes input:checked:focus-visible + .opt{outline-color:var(--field)}
+
+.select{display:block;width:100%;max-width:340px;padding:12px 44px 12px 14px;background:var(--field) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23161b20' stroke-width='1.6'/%3E%3C/svg%3E") no-repeat right 16px center;border:1px solid var(--ink);border-radius:var(--r);-webkit-appearance:none;appearance:none;cursor:pointer}
+.select:hover{background-color:var(--paper)}
+
+.actions{display:flex;flex-wrap:wrap;align-items:center;gap:14px 26px}
+.btn{padding:15px 28px;background:var(--accent);color:var(--field);border:1px solid var(--accent);border-radius:var(--r);font-weight:700}
+.btn:hover:not(:disabled){background:var(--ink);border-color:var(--ink)}
+.btn:disabled{opacity:.6;cursor:progress}
+.status{min-height:1.5em;font-weight:600}
+.status.err{color:var(--red)}
+
+/* checkbox */
+.tick{display:flex;gap:12px;align-items:flex-start;margin-top:14px;cursor:pointer;line-height:1.45}
+.tick input{appearance:none;-webkit-appearance:none;flex:none;display:grid;place-content:center;width:20px;height:20px;margin:1px 0 0;background:var(--field);border:1px solid var(--ink);border-radius:var(--r);cursor:pointer}
+.tick input::after{content:"";width:10px;height:10px;background:var(--accent);transform:scale(0)}
+.tick input:checked::after{transform:scale(1)}
+
+/* ---------- Results ---------- */
+.result{margin-top:56px}
+.res-title{max-width:34ch;font:700 clamp(1.5rem,3.4vw,2.125rem)/1.1 var(--sans);font-stretch:75%}
+.ledger{margin-top:24px;border-top:2px solid var(--ink)}
+.l-row{display:grid;grid-template-columns:150px minmax(0,1fr) 150px;gap:6px 20px;align-items:center;padding:16px 0;border-bottom:1px solid var(--rule)}
+.l-name{font-weight:700}
+.l-name small{display:block;font-weight:400;font-size:.8125rem;color:var(--accent)}
+.l-track{height:14px;background:var(--tint)}
+.l-fill{width:0;height:100%;background:var(--mute);transition:width .7s cubic-bezier(.2,.7,.1,1)}
+.l-row.best .l-fill{background:var(--accent)}
+.l-num{text-align:right}
+.l-num b{display:block;font:700 1.625rem/1 var(--sans);font-stretch:75%}
+.l-num span{display:block;margin-top:3px;font-size:.875rem;color:var(--mute)}
+
+.ver{margin-top:44px}
+.ver-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px 20px;padding-bottom:10px;border-bottom:1px solid var(--ink)}
+.ver-head h3{font:700 1.375rem/1.1 var(--sans);font-stretch:75%}
+.ver-head h3 small{margin-left:10px;font:400 .875rem var(--sans);color:var(--mute)}
+.toggle{display:inline-flex;border:1px solid var(--ink);border-radius:var(--r);background:var(--field)}
+.toggle button{padding:6px 12px;background:none;border:0;border-radius:0;font-size:.875rem;font-weight:600}
+.toggle button + button{border-left:1px solid var(--ink)}
+.toggle button:hover{background:var(--tint)}
+.toggle button[aria-pressed="true"]{background:var(--accent);color:var(--field)}
+.proof{margin-top:14px;padding:20px 22px;background:var(--field);border:1px solid var(--rule);border-radius:var(--r);font:400 1rem/1.85 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere}
+del{color:var(--red);text-decoration:line-through;text-decoration-thickness:2px}
+ins{color:var(--accent);text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px}
+.legend{margin-top:10px;font-size:.875rem;color:var(--mute)}
+.legend del,.legend ins{font-family:var(--mono)}
+
+
+.v-notes p{margin-top:10px;max-width:66ch;font-size:.9375rem;line-height:1.55;color:var(--mute)}
+.v-notes p.flag{color:var(--red);font-weight:600}
+.ver-foot{margin-top:14px}
+.fine{max-width:66ch;margin-top:40px;font-size:.9375rem;line-height:1.6;color:var(--mute)}
+
+/* loading placeholder */
+.skel{margin-top:56px}
+.skel i{display:block;height:16px;margin-top:18px;background:var(--rule);animation:pulse 1.3s ease-in-out infinite alternate}
+.skel i:first-child{height:34px;width:min(420px,70%);margin-top:0}
+.skel i:nth-child(3){width:82%}
+.skel i:nth-child(5){width:64%}
+@keyframes pulse{from{opacity:.35}to{opacity:1}}
+
+/* ---------- Prompt Maker ---------- */
+.brief{display:grid;grid-template-columns:210px minmax(0,1fr);gap:10px 32px;padding:26px 0;border-top:1px solid var(--rule)}
+.brief:first-of-type{border-top:1px solid var(--ink)}
+.brief .lab{margin-bottom:6px}
+.brief .hint{margin-top:0;max-width:26ch}
+.steps{list-style:none;padding:0;counter-reset:st;margin-top:24px;border-top:1px solid var(--ink)}
+.steps li{display:grid;grid-template-columns:34px minmax(0,1fr);padding:12px 0;border-bottom:1px solid var(--rule);counter-increment:st}
+.steps li::before{content:counter(st);font-weight:800}
+
+/* ---------- Language test ---------- */
+.sentences{margin-top:10px;padding:0;list-style:none;border-top:1px solid var(--ink);counter-reset:s}
+.sentences li{display:grid;grid-template-columns:34px minmax(0,1fr);padding:14px 0;border-bottom:1px solid var(--rule);font:400 .9375rem/1.6 var(--mono);counter-increment:s}
+.sentences li::before{content:counter(s);font:700 1rem var(--sans)}
+.lang{display:grid;grid-template-columns:110px minmax(0,1fr) 140px;gap:6px 20px;align-items:center;padding:16px 0;border-bottom:1px solid var(--rule)}
+.lang-name{font-weight:700}
+.lang.win .l-fill{background:var(--accent)}
+.lang-val{text-align:right;font:700 1.25rem/1.1 var(--sans);font-stretch:75%}
+.lang-val em{display:block;margin-top:3px;font:400 .875rem var(--sans);font-style:normal;color:var(--mute)}
+.verdict{margin-top:24px;max-width:50ch;font-size:1.125rem;line-height:1.5}
+
+/* ---------- Handoff ---------- */
+.drop{padding:26px 22px;border:1.5px dashed var(--ink);border-radius:var(--r);background:var(--field);text-align:center;transition:background .15s,border-color .15s}
+.drop.over{background:var(--tint);border-color:var(--accent)}
+.drop p{font-size:1rem}
+.drop-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:14px}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--ink);padding:10px 18px}
+.btn.ghost:hover:not(:disabled){background:var(--ink);color:var(--field)}
+.paste-box{margin-top:14px}
+.paste-box summary{cursor:pointer;font-weight:600;text-decoration:underline;text-underline-offset:3px}
+.paste-box[open] summary{margin-bottom:12px}
+.sm-lab{display:block;margin-bottom:6px}
+.field-in{display:block;width:100%;max-width:340px;padding:11px 14px;background:var(--field);border:1px solid var(--ink);border-radius:var(--r)}
+.files{list-style:none;margin-top:14px;border-top:1px solid var(--rule)}
+.files li{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px 16px;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--rule);font-size:.9375rem}
+.files .fn{font-family:var(--mono);overflow-wrap:anywhere}
+.files .fs{color:var(--mute);font-size:.875rem;white-space:nowrap}
+.files .linkbtn{font-size:.875rem;color:var(--mute)}
+.files .linkbtn:hover{color:var(--red)}
+.files-foot{display:flex;justify-content:space-between;gap:12px;margin-top:10px;font-size:.875rem;color:var(--mute)}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
+.found{margin-top:36px;border-top:1px solid var(--ink)}
+.found details{border-bottom:1px solid var(--rule)}
+.found summary{cursor:pointer;padding:14px 0;font-weight:700;list-style:none;display:flex;justify-content:space-between;gap:12px}
+.found summary::-webkit-details-marker{display:none}
+.found summary::after{content:"+";font-weight:400}
+.found details[open] summary::after{content:"\2212"}
+.found summary small{margin-left:8px;font-weight:400;color:var(--mute)}
+.found ul{list-style:none;padding:0 0 16px}
+.found li{padding:4px 0;font:400 .875rem/1.6 var(--mono);overflow-wrap:anywhere}
+.found li.warn{color:var(--red);font-family:var(--sans);font-size:.9375rem}
+.found li.plain{font-family:var(--sans);font-size:.9375rem}
+@media (max-width:640px){.two{grid-template-columns:minmax(0,1fr)}.files li{grid-template-columns:minmax(0,1fr) auto}.files .fs{grid-column:1}}
+
+/* ---------- Terms and privacy ---------- */
+.prose{max-width:62ch}
+.prose h2{margin-top:34px;font:700 1.375rem/1.15 var(--sans);font-stretch:75%}
+.prose p{margin-top:10px}
+.prose .when{margin-top:14px;color:var(--mute)}
+
+/* ---------- Footer ---------- */
+.foot{margin-top:72px;padding-top:18px;border-top:1px solid var(--rule);display:flex;flex-wrap:wrap;gap:8px 24px;max-width:900px;font-size:.875rem;color:var(--mute)}
+.foot p{flex:1 1 320px}
+
+/* cursor depth (only for a mouse, never for touch or reduced motion) */
+.head{position:relative}
+.head > :not(.depth){position:relative;z-index:1}
+.word{display:inline-block;white-space:nowrap}
+.depth{display:none;position:absolute;z-index:0;top:50%;right:0;width:min(30%,300px);height:46%;pointer-events:none}
+.depth i{position:absolute;right:0;display:block;height:20px;will-change:transform}
+.depth i:nth-child(1){top:0;width:100%;background:var(--accent)}
+.depth i:nth-child(2){top:38%;width:64%;background:var(--ink)}
+.depth i:nth-child(3){top:76%;width:30%;border:2px solid var(--accent)}
+@media (min-width:1100px){.fx-on .depth{display:block}.fx-on h1{white-space:nowrap}}
+
+/* compression level */
+.level{max-width:520px}
+.level input{display:block;width:100%;height:28px;margin:0;background:transparent;-webkit-appearance:none;appearance:none;cursor:pointer}
+.level input::-webkit-slider-runnable-track{height:4px;background:var(--ink)}
+.level input::-moz-range-track{height:4px;background:var(--ink)}
+.level input::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:28px;margin-top:-12px;background:var(--accent);border:1px solid var(--ink);border-radius:var(--r)}
+.level input::-moz-range-thumb{width:18px;height:26px;background:var(--accent);border:1px solid var(--ink);border-radius:var(--r)}
+.level-marks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:6px;font-size:.875rem;font-weight:700;color:var(--mute)}
+.level-marks span:nth-child(2){text-align:center}
+.level-marks span:last-child{text-align:right}
+.level-marks .on{color:var(--accent)}
+
+/* test it live, stats */
+.flag{color:var(--red);font-weight:600}
+.ver-foot{display:flex;flex-wrap:wrap;gap:8px 22px}
+.live{margin-top:18px;padding-top:6px;border-top:1px solid var(--rule)}
+.live .skel{margin-top:16px}
+.live-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:12px}
+.live-grid h4{font:700 1.0625rem/1.2 var(--sans);font-stretch:75%}
+.live-meta{margin-top:2px;font-size:.875rem;color:var(--mute)}
+.live-grid .proof{margin-top:8px;font-size:.9375rem;line-height:1.65}
+.verdict-line{margin-top:14px;max-width:66ch;line-height:1.5}
+.verdict-line.ok b{color:var(--accent)}
+.verdict-line.bad b{color:var(--red)}
+.sub{margin-top:44px;font:700 1.375rem/1.1 var(--sans);font-stretch:75%}
+.stat-rows{margin-top:24px;border-top:2px solid var(--ink)}
+.stat-row{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:14px 0;border-bottom:1px solid var(--rule)}
+.stat-row b{font:700 1.75rem/1 var(--sans);color:var(--accent)}
+.chart{display:grid;grid-template-columns:repeat(14,minmax(0,1fr));gap:6px;align-items:end;height:210px;margin-top:20px;border-bottom:2px solid var(--ink)}
+.bar-col{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;min-width:0}
+.bar-val{font-size:.75rem;line-height:1.6;color:var(--mute)}
+.bar-fill{width:100%;height:0;background:var(--accent);transition:height .6s cubic-bezier(.2,.7,.1,1)}
+.chart-days{display:grid;grid-template-columns:repeat(14,minmax(0,1fr));gap:6px;margin-top:6px;font-size:.75rem;color:var(--mute);text-align:center}
+.chart-days span{white-space:nowrap;overflow:visible}
+
+/* hide the history panel (wide screens) */
+.side-hide{background:none;border:0;padding:4px 0;font-weight:700;text-decoration:underline;text-underline-offset:3px}
+.side-hide:hover{color:var(--accent)}
+@media (min-width:961px){
+  body.side-hidden .shell{grid-template-columns:minmax(0,1fr)}
+  body.side-hidden .side{display:none}
+  body.side-hidden .h-toggle{display:block}
+}
+
+/* ---------- Narrow screens ---------- */
+.scrim{position:fixed;inset:0;z-index:35;background:rgba(22,27,32,.5)}
+@media (max-width:960px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  .bar{height:auto;grid-template-columns:1fr auto;padding-top:12px;padding-bottom:12px;row-gap:12px}
+  .switch{grid-column:1 / -1;grid-row:2;display:flex}
+  .switch a{flex:1;text-align:center;padding:10px 8px}
+  .health{display:none}
+  .h-toggle{display:block}
+  .side{position:fixed;z-index:40;top:0;left:0;bottom:0;width:min(88vw,340px);height:auto;border-right:1px solid var(--ink);transform:translateX(-100%);visibility:hidden;transition:transform .2s ease-out,visibility 0s linear .2s}
+  body.side-open .side{transform:none;visibility:visible;transition:transform .2s ease-out}
+  .side-close{display:block}
+  .side-hide{display:none}
+  .brief{grid-template-columns:minmax(0,1fr)}
+  .brief .hint{max-width:none}
+}
+@media (max-width:640px){
+  .modes{grid-template-columns:minmax(0,1fr)}
+  .modes label + label{border-left:0;border-top:1px solid var(--ink)}
+  .l-row{grid-template-columns:minmax(0,1fr) auto}
+  .l-track{grid-column:1 / -1;order:3}
+  .l-num{text-align:right}
+  .lang{grid-template-columns:minmax(0,1fr) auto}
+  .lang .l-track{grid-column:1 / -1;order:3}
+  .btn{width:100%}
+  .live-grid{grid-template-columns:minmax(0,1fr)}
+  .bar-val{display:none}
+  .switch a{padding:9px 4px;font-size:.875rem;white-space:normal;line-height:1.2}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none !important;transition:none !important}
+}
+</style>
+</head>
+
+<body data-bg="shorten">
+<div class="bgs" aria-hidden="true"><i data-k="shorten"></i><i data-k="maker"></i><i data-k="handoff"></i></div>
+
+<header class="bar">
+  <a class="mark" href="#shorten" aria-label="PromptForge">PromptForge</a>
+  <nav class="switch" aria-label="Tools">
+    <a href="#shorten" data-view="shorten">Prompt Shortener</a>
+    <a href="#maker" data-view="maker">Prompt Maker</a>
+    <a href="#handoff" data-view="handoff">Handoff</a>
+  </nav>
+  <div class="bar-right">
+    <div class="palette">
+      <button class="pal-btn" id="pal-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="pal-pop"><span class="pal-dot" aria-hidden="true"></span>Colour</button>
+      <div class="pal-pop" id="pal-pop" hidden>
+        <p>Accent colour</p>
+        <div class="accent-row" id="accent-row" role="group" aria-label="Accent colour"></div>
+      </div>
+    </div>
+    <p class="health" id="health"><span class="pip" aria-hidden="true"></span><span id="health-text">Checking server</span></p>
+    <button class="h-toggle" id="h-toggle" type="button" aria-controls="side" aria-expanded="false">History</button>
+  </div>
+</header>
+
+<div class="shell">
+
+  <aside class="side" id="side" aria-label="History">
+    <div class="side-head">
+      <h2>History</h2>
+      <button class="side-hide" id="side-hide" type="button">Hide</button>
+      <button class="side-close" id="side-close" type="button">Close</button>
+    </div>
+    <p class="h-sum" id="h-sum"></p>
+    <input class="hsearch" id="h-search" type="search" placeholder="Search" aria-label="Search history" autocomplete="off">
+    <div class="h-filter" role="group" aria-label="Filter history">
+      <button type="button" data-hfilter="all" aria-pressed="true">All</button>
+      <button type="button" data-hfilter="fav" aria-pressed="false">Favourites</button>
+    </div>
+    <ol class="runs" id="runs"></ol>
+    <div class="side-foot">
+      <label class="tick h-save"><input type="checkbox" id="hist-toggle" checked><span>Save new runs</span></label>
+      <button class="linkbtn danger" id="clear" type="button">Clear history</button>
+      <nav aria-label="More">
+        <a href="#stats">Stats</a>
+        <a href="#languages">Language test</a>
+        <a href="#terms">Terms</a>
+        <a href="#privacy">Privacy</a>
+      </nav>
+    </div>
+  </aside>
+
+  <main id="main">
+
+    <!-- ===================== PROMPT SHORTENER ===================== -->
+    <section class="view is-active" id="view-shorten" aria-labelledby="h-shorten">
+      <header class="head">
+        <h1 id="h-shorten">Prompt Shortener</h1>
+        <p class="lede">Telegrams were billed by the word, so people learned to cut. Prompts are billed by the token. Paste one in and see what can go.</p>
+      </header>
+
+      <form class="stack" id="form" novalidate>
+        <div>
+          <label class="lab" for="prompt">Your prompt</label>
+          <div class="sheet">
+            <textarea id="prompt" name="prompt" rows="9" spellcheck="false" placeholder="Paste the prompt you want to shorten"></textarea>
+            <div class="sheet-foot">
+              <span id="r-chars">0 characters</span>
+              <span class="count"><b id="r-n">0</b>tokens <span id="r-src"></span></span>
+            </div>
+          </div>
+        </div>
+
+        <fieldset>
+          <legend class="lab">Mode</legend>
+          <div class="modes">
+            <label><input type="radio" name="mode" value="english" checked><span class="opt"><b>English only</b><small>Cuts filler and keeps it in English.</small></span></label>
+            <label><input type="radio" name="mode" value="mixed"><span class="opt"><b>Mixed languages</b><small>Swaps phrases for shorter words from other languages.</small></span></label>
+            <label><input type="radio" name="mode" value="both"><span class="opt"><b>Compare both</b><small>Runs both and shows which costs fewer tokens.</small></span></label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend class="lab">Compression level</legend>
+          <div class="level">
+            <input type="range" id="level" name="level" min="0" max="2" step="1" value="1" aria-describedby="level-desc">
+            <div class="level-marks" aria-hidden="true"><span>Light</span><span>Medium</span><span>Aggressive</span></div>
+          </div>
+          <p class="hint" id="level-desc"></p>
+        </fieldset>
+
+        <div>
+          <label class="lab" for="model">Gemini model</label>
+          <select class="select model-select" id="model" name="model"></select>
+          <p class="hint">If a model is busy, the next one is used automatically.</p>
+        </div>
+
+        <div class="actions">
+          <button class="btn glass" id="run" type="submit">Shorten prompt</button>
+          <button class="linkbtn" id="sample" type="button">Use a sample prompt</button>
+          <span class="hint" style="margin:0">Ctrl or Cmd + Enter</span>
+        </div>
+        <p class="status" id="status" role="status" aria-live="polite"></p>
+      </form>
+
+      <section class="result" id="results" hidden aria-live="polite" aria-label="Result"></section>
+    </section>
+
+    <!-- ===================== STATS ===================== -->
+    <section class="view" id="view-stats" aria-labelledby="h-stats">
+      <header class="head">
+        <h1 id="h-stats">Stats</h1>
+        <p class="lede">What PromptForge has done for you so far, counted from your saved history.</p>
+      </header>
+      <div id="stats-body"></div>
+    </section>
+
+    <!-- ===================== PROMPT MAKER ===================== -->
+    <section class="view" id="view-maker" aria-labelledby="h-maker">
+      <header class="head">
+        <h1 id="h-maker">Prompt Maker</h1>
+        <p class="lede">Describe your project in four boxes. You get one short prompt for each part, ready to paste into Claude, so every message costs fewer tokens.</p>
+      </header>
+
+      <form id="b-form" novalidate>
+        <div class="brief">
+          <div>
+            <label class="lab" for="b-idea">Idea and plan</label>
+            <p class="hint">What you are building, who uses it and what it should do.</p>
+          </div>
+          <div class="sheet"><textarea class="sm" id="b-idea" spellcheck="false" placeholder="A habit tracker for students. Users sign up, add habits and see a weekly streak chart."></textarea></div>
+        </div>
+
+        <div class="brief">
+          <div>
+            <label class="lab" for="b-frontend">Frontend</label>
+            <p class="hint">How it should look, which libraries and frameworks to use.</p>
+          </div>
+          <div class="sheet"><textarea class="sm" id="b-frontend" spellcheck="false" placeholder="React with Vite and Tailwind, mobile first, three pages: dashboard, habits, settings."></textarea></div>
+        </div>
+
+        <div class="brief">
+          <div>
+            <label class="lab" for="b-backend">Backend</label>
+            <p class="hint">Language, libraries, the tasks it handles and any context.</p>
+          </div>
+          <div class="sheet"><textarea class="sm" id="b-backend" spellcheck="false" placeholder="Python Flask with SQLite. REST API with login, habit create, read, update, delete, and weekly stats."></textarea></div>
+        </div>
+
+        <div class="brief">
+          <div>
+            <label class="lab" for="b-security">Security</label>
+            <p class="hint">What to test and fix. Leave it empty to run only the checklist.</p>
+          </div>
+          <div>
+            <div class="sheet"><textarea class="sm" id="b-security" spellcheck="false" placeholder="User logins, file uploads, API keys in the .env file."></textarea></div>
+            <label class="tick"><input type="checkbox" id="b-common" checked><span>Include the common web vulnerability checklist: injection, XSS, broken login, CSRF, exposed secrets, rate limits, headers.</span></label>
+          </div>
+        </div>
+
+        <div class="stack" style="margin-top:30px">
+          <div>
+            <label class="lab" for="model-b">Gemini model</label>
+            <select class="select model-select" id="model-b"></select>
+            <p class="hint">If a model is busy, the next one is used automatically.</p>
+          </div>
+          <div class="actions">
+            <button class="btn glass" id="b-run" type="submit">Build prompts</button>
+            <span class="hint" style="margin:0">Ctrl or Cmd + Enter</span>
+          </div>
+          <p class="status" id="b-status" role="status" aria-live="polite"></p>
+        </div>
+      </form>
+
+      <section class="result" id="b-result" hidden aria-live="polite" aria-label="Generated prompts"></section>
+    </section>
+
+    <!-- ===================== HANDOFF ===================== -->
+    <section class="view" id="view-handoff" aria-labelledby="h-handoff">
+      <header class="head">
+        <h1 id="h-handoff">Handoff</h1>
+        <p class="lede">Switching to another AI mid-project? Add your files and say what you were doing. You get one compact prompt with the structure, the endpoints and the exact field names, so the next AI can carry on without asking you anything.</p>
+      </header>
+
+      <form id="hf-form" novalidate>
+        <div class="brief">
+          <div>
+            <label class="lab" for="hf-doing">What were you doing</label>
+            <p class="hint">What the project is, what already works and where you stopped.</p>
+          </div>
+          <div class="sheet"><textarea class="sm" id="hf-doing" spellcheck="false" placeholder="A habit tracker for students. The frontend is done and calls /api routes. I stopped before writing any server code."></textarea></div>
+        </div>
+
+        <div class="brief" role="group" aria-labelledby="hf-goal-l">
+          <div>
+            <span class="lab" id="hf-goal-l">What the next AI should do</span>
+            <p class="hint">This sets the hard rules in the prompt.</p>
+          </div>
+          <div class="modes">
+            <label><input type="radio" name="hfgoal" value="backend" checked><span class="opt"><b>Build the backend</b><small>For a frontend that already exists.</small></span></label>
+            <label><input type="radio" name="hfgoal" value="frontend"><span class="opt"><b>Build the frontend</b><small>For a backend that already exists.</small></span></label>
+            <label><input type="radio" name="hfgoal" value="continue"><span class="opt"><b>Keep going</b><small>Carry on with the whole project.</small></span></label>
+          </div>
+        </div>
+
+        <div class="brief">
+          <div>
+            <span class="lab">Your files</span>
+            <p class="hint">Code and config files. Folders like node_modules, images and lock files are skipped. Files stay in this page until you build.</p>
+          </div>
+          <div>
+            <div class="drop" id="hf-drop" tabindex="-1">
+              <p><b>Drop files or a folder here</b></p>
+              <div class="drop-actions">
+                <button class="btn ghost" type="button" id="hf-pick">Choose files</button>
+                <button class="btn ghost" type="button" id="hf-pick-dir">Choose a folder</button>
+              </div>
+              <input type="file" id="hf-input" multiple hidden>
+              <input type="file" id="hf-input-dir" webkitdirectory hidden>
+            </div>
+            <details class="paste-box">
+              <summary>Paste code instead</summary>
+              <label class="lab sm-lab" for="hf-paste-name">File name</label>
+              <input class="field-in" type="text" id="hf-paste-name" placeholder="index.html" spellcheck="false" maxlength="120">
+              <div class="sheet" style="margin-top:10px"><textarea class="sm" id="hf-paste" spellcheck="false" placeholder="Paste the file contents"></textarea></div>
+              <button class="linkbtn" type="button" id="hf-paste-add" style="margin-top:10px">Add this file</button>
+            </details>
+            <p class="status" id="hf-skip" role="status" aria-live="polite"></p>
+            <ul class="files" id="hf-files" aria-label="Added files"></ul>
+          </div>
+        </div>
+
+        <div class="brief">
+          <div>
+            <label class="lab" for="hf-extra">Anything else</label>
+            <p class="hint">Optional. Rules, libraries to use, things to avoid.</p>
+          </div>
+          <div class="sheet"><textarea class="sm" id="hf-extra" spellcheck="false" placeholder="Use Flask and SQLite. Keep it one file for now. No ORM."></textarea></div>
+        </div>
+
+        <div class="stack" style="margin-top:30px">
+          <div class="two">
+            <div>
+              <label class="lab" for="hf-target">Moving to</label>
+              <select class="select" id="hf-target">
+                <option value="claude">Claude</option>
+                <option value="chatgpt">ChatGPT</option>
+                <option value="gemini">Gemini</option>
+                <option value="other">Another AI</option>
+              </select>
+              <p class="hint">Claude gets XML tags. The others get headings.</p>
+            </div>
+            <div>
+              <label class="lab" for="model-h">Gemini model</label>
+              <select class="select model-select" id="model-h"></select>
+              <p class="hint">Writes only the short summary, from your notes and an outline.</p>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn glass" id="hf-run" type="submit">Build handoff prompt</button>
+          </div>
+          <p class="status" id="hf-status" role="status" aria-live="polite"></p>
+        </div>
+      </form>
+
+      <section class="result" id="hf-result" hidden aria-live="polite" aria-label="Handoff prompt"></section>
+    </section>
+
+    <!-- ===================== LANGUAGE TEST ===================== -->
+    <section class="view" id="view-languages" aria-labelledby="h-languages">
+      <header class="head">
+        <h1 id="h-languages">Language test</h1>
+        <p class="lede">The same five sentences, counted in five languages. If switching language saved tokens, it would show up here.</p>
+      </header>
+
+      <h2 class="lab">Test sentences</h2>
+      <ol class="sentences" id="sentences"></ol>
+
+      <div class="actions" style="margin-top:28px">
+        <button class="btn" id="run-exp" type="button">Run the test</button>
+      </div>
+
+      <div id="exp-out" style="margin-top:44px" hidden>
+        <p class="hint" id="exp-note" style="margin:0 0 14px"></p>
+        <div style="border-top:2px solid var(--ink)" id="exp-rows"></div>
+        <p class="verdict" id="exp-verdict"></p>
+      </div>
+    </section>
+
+    <!-- ===================== TERMS ===================== -->
+    <section class="view" id="view-terms" aria-labelledby="h-terms">
+      <header class="head"><h1 id="h-terms">Terms</h1></header>
+      <div class="prose">
+        <p class="when">Last updated October 31, 2026</p>
+
+        <h2>What PromptForge is</h2>
+        <p>PromptForge is a student project. It uses AI to rewrite prompts so they cost fewer tokens. It is provided as it is, with no promise that it is available, accurate or right for your use.</p>
+
+        <h2>Check every result</h2>
+        <p>A shortened prompt can lose or change meaning. The server checks that numbers, links, quoted text and code are still there. It cannot check that the meaning is the same. Read each result before you use it. You are responsible for how you use it.</p>
+
+        <h2>What you send</h2>
+        <p>You keep the rights to what you paste. Only send text you are allowed to share. Do not send passwords, API keys, private data about other people, or anything unlawful.</p>
+
+        <h2>Fair use</h2>
+        <p>Do not try to overload, break into or scrape the service. It depends on the limits of Google's Gemini API, so it can slow down, switch models or stop without notice.</p>
+
+        <h2>Changes</h2>
+        <p>These terms can change. The date at the top shows the latest version. To the extent the law allows, the person running this site is not liable for losses from using it.</p>
+      </div>
+    </section>
+
+    <!-- ===================== PRIVACY ===================== -->
+    <section class="view" id="view-privacy" aria-labelledby="h-privacy">
+      <header class="head"><h1 id="h-privacy">Privacy</h1></header>
+      <div class="prose">
+        <p class="when">Last updated October 31, 2026</p>
+
+        <h2>Where your text goes</h2>
+        <p>Prompts you shorten, and notes you enter in Prompt Maker, are sent from PromptForge's server to Google's Gemini API, which writes the result. If the server uses Google's free tier, Google may use what it receives to improve its products. Do not send anything confidential.</p>
+
+        <h2>Token counts</h2>
+        <p>Tokens are counted on the server with the OpenAI tokenizer library, so the count does not send your text to OpenAI.</p>
+
+        <h2>What is saved</h2>
+        <p>Each shortened prompt is saved in the app's database with its mode and token counts, so the History panel and the Stats page can show it. Favourites and tags are saved with the run. Turn off Save new runs in the panel and new runs are not saved. Clear history deletes every saved run. Whoever runs the server can read that database.</p>
+        <p>Test it live sends your original and your shortened prompt to Gemini as two ordinary questions, then sends both answers in a third request so they can be compared.</p>
+        <p>Handoff reads the files you add inside your browser and sends them to this server. Plain code on the server finds the endpoints, fields, file names and variable names, and masks anything that looks like a key, token or password. Gemini then gets only your notes, a list of file and function names and what the code found, never your source code. Only the finished prompt is shown to you. The files themselves are not saved, but a line about each run (your notes and the token counts) is kept in this browser's history.</p>
+        <p>Your browser keeps a draft of what you typed and your model choice, so they are still there when you come back. This stays in your browser.</p>
+
+        <h2>What is not collected</h2>
+        <p>There are no accounts, no ads, no analytics and no tracking cookies. The page loads its fonts from Google Fonts, which can see your IP address when it does.</p>
+
+        <h2>Questions</h2>
+        <p>Ask the person who runs this site.</p>
+      </div>
+    </section>
+
+    <footer class="foot">
+      <p>PromptForge is a student project. A shortened prompt can lose meaning, so read each one before you use it.</p>
+      <a href="#terms">Terms</a>
+      <a href="#privacy">Privacy</a>
+    </footer>
+
+  </main>
+</div>
+<div class="scrim" id="scrim" hidden></div>
+
+<script>
+/* ====================================================================
+   PromptForge frontend. Talks to app.py, all JSON:
+
+   POST /shorten   { prompt, mode: english|mixed|both, model }
+     -> { counter, model, models_used,
+          original: { text, tokens, chars },
+          english:  { text, tokens, chars, kept_original, missing },
+          mixed:    { text, tokens, chars, missing, vs_english, tried, error } }
+   POST /count     { text } -> { tokens, exact, counter }
+   POST /build     { idea, frontend, backend, security, rules, checklist, global, model }
+     -> { counter, model, models_used, notes_tokens, total_tokens, missing,
+          prompts: [ { key, title, text, tokens, chars } ] }
+   GET  /history   -> { runs: [ { id, created_at, prompt, mode, original_tokens, best_tokens } ] }
+   DELETE /history
+   POST /testlive  { original, shortened, model } -> { a, b, verdict, note }
+   GET  /stats?tz= -> { totals, modes, days }
+   GET  /history/meta, PATCH /history/<id> { fav, tags }
+   POST /experiment { sentences, fresh, model } -> { counter, cached, languages: [ { name, tokens } ] }
+   GET  /health    -> { ok, gemini_configured, model, models, counter }
+   Errors are { error: "message" } with a 4xx or 5xx status.
+==================================================================== */
+(() => {
+'use strict';
+
+const ENDPOINTS = { shorten: '/shorten', history: '/history', experiment: '/experiment', health: '/health', count: '/count', build: '/build', testlive: '/testlive', stats: '/stats', handoff: '/handoff' };
+
+const SAMPLE_PROMPT =
+`Hi! I would like you to help me write a short blog post about how to learn Python as a complete beginner. Please make it friendly and easy to read. I think that it should be about 300 words, and it should include three practical tips, and also an example for each tip. Could you please also make sure that the tone is not too formal? Thank you so much in advance!`;
+
+const SENTENCES = [
+  'The meeting has been moved to Thursday afternoon because the room is not available.',
+  'Please summarize the attached report in three short bullet points.',
+  'I would like to learn how to cook a simple vegetable soup for my family.',
+  'The new update fixes a bug that caused the app to close without warning.',
+  'Write a friendly email to a customer who is waiting for a refund.'
+];
+
+const MODE_LABEL = { english: 'English only', mixed: 'Mixed languages', both: 'Both compared', maker: 'Prompt Maker', handoff: 'Handoff' };
+const MINUS = '−';
+
+/* ---------- helpers ---------- */
+const $  = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const fmt = n => new Intl.NumberFormat('en-US').format(n);
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const roughTokens = text => Math.ceil(text.length / 4);
+
+function deltaLabel(base, tokens){
+  if (!base) return '0%';
+  const d = Math.round((tokens / base - 1) * 100);
+  if (d === 0) return '0%';
+  return (d < 0 ? MINUS : '+') + Math.abs(d) + '%';
+}
+
+async function api(path, options){
+  let res;
+  try { res = await fetch(path, options); }
+  catch { throw new Error('Could not reach the server. Check that app.py is running.'); }
+  if (!res.ok){
+    let msg = 'The server returned ' + res.status + '.';
+    try { const j = await res.json(); if (j && j.error) msg = j.error; } catch { /* keep default */ }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+const postJson = body => ({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+
+async function copyText(text){
+  try { await navigator.clipboard.writeText(text); return true; } catch { /* fall through */ }
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.cssText = 'position:fixed;opacity:0';
+  document.body.appendChild(ta); ta.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch { /* ignore */ }
+  ta.remove();
+  return ok;
+}
+async function flashCopy(btn, text, label){
+  const ok = await copyText(text);
+  btn.textContent = ok ? 'Copied' : 'Copy failed';
+  setTimeout(() => { btn.textContent = label; }, 1500);
+}
+
+const store = {
+  get(k){ try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v){ try { localStorage.setItem(k, v); } catch { /* storage can be blocked */ } }
+};
+
+const skeleton = () => '<div class="skel" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>';
+
+/* ====================================================================
+   PROOF MARKS: which words were cut and which were added
+==================================================================== */
+const norm = w => w.toLowerCase().replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '') || w.toLowerCase();
+
+function diffWords(from, to){
+  const a = from.split(/\s+/).filter(Boolean);
+  const b = to.split(/\s+/).filter(Boolean);
+  const n = a.length, m = b.length;
+  if (!n || !m || n * m > 2500000) return null;
+  const ka = a.map(norm), kb = b.map(norm);
+  const w = m + 1;
+  const t = new Uint16Array((n + 1) * w);
+  for (let i = n - 1; i >= 0; i--){
+    for (let j = m - 1; j >= 0; j--){
+      t[i * w + j] = ka[i] === kb[j]
+        ? t[(i + 1) * w + j + 1] + 1
+        : Math.max(t[(i + 1) * w + j], t[i * w + j + 1]);
+    }
+  }
+  const ops = [];
+  let i = 0, j = 0;
+  while (i < n && j < m){
+    if (ka[i] === kb[j]){ ops.push(['eq', b[j]]); i++; j++; }
+    else if (t[(i + 1) * w + j] >= t[i * w + j + 1]){ ops.push(['del', a[i]]); i++; }
+    else { ops.push(['ins', b[j]]); j++; }
+  }
+  while (i < n) ops.push(['del', a[i++]]);
+  while (j < m) ops.push(['ins', b[j++]]);
+  return ops;
+}
+
+function proofHtml(ops){
+  let out = '', cur = null, buf = [];
+  const flush = () => {
+    if (!buf.length) return;
+    const t = esc(buf.join(' '));
+    out += (cur === 'del' ? `<del>${t}</del>` : cur === 'ins' ? `<ins>${t}</ins>` : t) + ' ';
+    buf = [];
+  };
+  for (const [kind, word] of ops){
+    if (kind !== cur){ flush(); cur = kind; }
+    buf.push(word);
+  }
+  flush();
+  return out.trim();
+}
+
+/* ====================================================================
+   PROMPT SHORTENER
+==================================================================== */
+const form     = $('#form');
+const promptEl = $('#prompt');
+const runBtn   = $('#run');
+const statusEl = $('#status');
+const resultEl = $('#results');
+let versionData = {};
+let lastOriginalText = '';
+
+function setStatus(msg, isError){
+  statusEl.textContent = msg || '';
+  statusEl.classList.toggle('err', Boolean(isError));
+}
+
+let countTimer = 0, countSeq = 0;
+function updateReadout(){
+  const v = promptEl.value;
+  $('#r-chars').textContent = fmt(v.length) + (v.length === 1 ? ' character' : ' characters');
+  const n = $('#r-n'), src = $('#r-src');
+  if (!v.trim()){ n.textContent = '0'; src.textContent = ''; return; }
+  n.textContent = fmt(roughTokens(v));
+  src.textContent = '(estimate)';
+  clearTimeout(countTimer);
+  const seq = ++countSeq;
+  countTimer = setTimeout(async () => {
+    try {
+      const r = await api(ENDPOINTS.count, postJson({ text: v }));
+      if (seq !== countSeq) return;
+      n.textContent = fmt(r.tokens);
+      src.textContent = r.exact ? '(OpenAI tokenizer)' : '(estimate)';
+    } catch { /* keep the estimate if the server is not reachable */ }
+  }, 250);
+}
+promptEl.addEventListener('input', () => { updateReadout(); store.set('pf.draft.v1', promptEl.value); });
+promptEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); form.requestSubmit(); }
+});
+$('#sample').addEventListener('click', () => {
+  promptEl.value = SAMPLE_PROMPT;
+  store.set('pf.draft.v1', promptEl.value);
+  updateReadout();
+  promptEl.focus();
+});
+
+function summarize(data){
+  const list = [{ key: 'original', name: 'Your prompt', ...data.original }];
+  if (data.english) list.push({ key: 'english', name: 'English only', ...data.english });
+  if (data.mixed)   list.push({ key: 'mixed',   name: 'Mixed languages', ...data.mixed });
+  const base = data.original.tokens;
+  const best = list.slice(1).reduce((a, b) => (b.tokens < a.tokens ? b : a));
+  return { base, list, best };
+}
+
+function notesHtml(v){
+  const out = [];
+  if (v.key === 'english' && v.kept_original)
+    out.push('<p>Gemini could not make this shorter without changing it, so your original is shown.</p>');
+  if (v.missing && v.missing.length)
+    out.push(`<p class="flag">Check before you use this. These items from your prompt are not in this version: ${v.missing.map(esc).join(', ')}</p>`);
+  if (v.key === 'mixed'){
+    if (v.error){
+      out.push(`<p class="flag">${esc(v.error)}</p>`);
+    } else if (typeof v.vs_english === 'number'){
+      const d = v.vs_english;
+      out.push('<p>' + (d < 0 ? MINUS + fmt(-d) + ' tokens compared with the English version. Mixing languages helped here.'
+        : d > 0 ? '+' + fmt(d) + ' tokens compared with the English version. Mixing languages cost more here.'
+        : 'Same token count as the English version.')
+        + (v.tried > 1 ? ' Gemini tried ' + v.tried + ' candidates and this is the cheapest.' : '') + '</p>');
+    }
+  }
+  return out.join('');
+}
+
+function renderResult(data){
+  const { base, list, best } = summarize(data);
+  const compared = list.length > 2;
+
+  const title = best.tokens < base
+    ? `${compared ? 'Best: ' + best.name + '. ' : ''}${fmt(best.tokens)} tokens instead of ${fmt(base)}, ${deltaLabel(base, best.tokens)}.`
+    : 'No version came out shorter than your original.';
+
+  const ledger = list.map(v => {
+    const w = base ? Math.min(100, (v.tokens / base) * 100) : 0;
+    const isBest = v === best && best.tokens < base;
+    return `<div class="l-row${isBest ? ' best' : ''}" data-w="${w.toFixed(2)}">
+      <div class="l-name">${esc(v.name)}${isBest && compared ? '<small>Fewest tokens</small>' : ''}</div>
+      <div class="l-track"><div class="l-fill"></div></div>
+      <div class="l-num"><b>${fmt(v.tokens)}</b><span>${v.key === 'original' ? 'tokens' : deltaLabel(base, v.tokens) + ' tokens'}</span></div>
+    </div>`;
+  }).join('');
+
+  versionData = {};
+  lastOriginalText = data.original.text;
+  const versions = list.slice(1).map(v => {
+    const ops = diffWords(data.original.text, v.text);
+    const cuts = ops ? ops.filter(o => o[0] === 'del').length : 0;
+    const adds = ops ? ops.filter(o => o[0] === 'ins').length : 0;
+    versionData[v.key] = { text: v.text, marked: ops ? proofHtml(ops) : null, clean: esc(v.text) };
+    const startMarked = Boolean(ops) && v.key === 'english';
+    return `<article class="ver" data-key="${v.key}">
+      <div class="ver-head">
+        <h3>${esc(v.name)}<small>${fmt(v.chars)} characters, ${fmt(v.tokens)} tokens</small></h3>
+        ${ops ? `<div class="toggle" role="group" aria-label="View for ${esc(v.name)}">
+          <button type="button" data-show="marked" aria-pressed="${startMarked}">Show cuts</button>
+          <button type="button" data-show="clean" aria-pressed="${!startMarked}">Clean text</button>
+        </div>` : ''}
+      </div>
+      <p class="proof" id="proof-${v.key}">${startMarked ? versionData[v.key].marked : versionData[v.key].clean}</p>
+      ${ops ? `<p class="legend" id="legend-${v.key}"${startMarked ? '' : ' hidden'}><del>Struck in red</del> was cut (${fmt(cuts)} words). <ins>Underlined in blue</ins> was added (${fmt(adds)} words).</p>` : ''}
+      <div class="v-notes">${notesHtml(v)}</div>
+      <div class="ver-foot"><button class="linkbtn" type="button" data-copy="${v.key}">Copy</button><button class="linkbtn" type="button" data-live="${v.key}">Test it live</button></div>
+      <div class="live" id="live-${v.key}" hidden aria-live="polite"></div>
+    </article>`;
+  }).join('');
+
+  const used = data.models_used || [];
+  const tail = 'The server checks that numbers, links, quoted text and code from your prompt are still there. It cannot check meaning, so read the result once before you use it. '
+    + 'Tokens counted with ' + (data.counter || 'the backend counter') + '.'
+    + (used.length ? ' Answered by ' + used.join(', ') + (data.model && used[0] !== data.model ? ' (switched automatically because ' + data.model + ' was busy).' : '.')
+      : (data.model ? ' Model: ' + data.model + '.' : ''));
+
+  resultEl.innerHTML = `<h2 class="res-title">${esc(title)}</h2>
+    <div class="ledger">${ledger}</div>
+    ${versions}
+    <p class="fine">${esc(tail)}</p>`;
+  resultEl.hidden = false;
+
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    $$('.l-row', resultEl).forEach(r => { $('.l-fill', r).style.width = r.dataset.w + '%'; });
+  }));
+  return { base, best };
+}
+
+const VERDICTS = { same: ['Same result', 'ok'], minor: ['Small differences', 'warn'], different: ['Different result', 'bad'], unknown: ['Not compared', 'warn'] };
+function liveHtml(r){
+  const [label, kind] = VERDICTS[r.verdict] || VERDICTS.unknown;
+  return `<div class="live-grid">
+      <div><h4>Answer to your original</h4><p class="live-meta">${fmt(r.a.tokens)} tokens</p><p class="proof">${esc(r.a.text)}</p></div>
+      <div><h4>Answer to this version</h4><p class="live-meta">${fmt(r.b.tokens)} tokens</p><p class="proof">${esc(r.b.text)}</p></div>
+    </div>
+    <p class="verdict-line ${kind}"><b>${label}.</b> ${esc(r.note || '')}</p>
+    <p class="hint">Answers are limited to about 180 words so they are easy to compare. The check used three Gemini requests.</p>`;
+}
+async function runLive(btn){
+  const key = btn.dataset.live, d = versionData[key], box = $('#live-' + key);
+  if (!d || !box) return;
+  btn.disabled = true;
+  btn.textContent = 'Testing';
+  box.hidden = false;
+  box.innerHTML = '<p class="hint">Asking Gemini both prompts, then comparing the answers.</p>' + skeleton();
+  try {
+    const r = await api(ENDPOINTS.testlive, postJson({ original: lastOriginalText, shortened: d.text, model: $('#model').value }));
+    box.innerHTML = liveHtml(r);
+  } catch (err){
+    box.innerHTML = `<p class="flag">Could not run the test. ${esc(err.message || 'Something went wrong.')}</p>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Test it live again';
+  }
+}
+
+resultEl.addEventListener('click', e => {
+  const live = e.target.closest('[data-live]');
+  if (live) return void runLive(live);
+  const copy = e.target.closest('[data-copy]');
+  if (copy){
+    flashCopy(copy, (versionData[copy.dataset.copy] || {}).text || '', 'Copy');
+    return;
+  }
+  const tog = e.target.closest('[data-show]');
+  if (!tog) return;
+  const ver = tog.closest('.ver'), key = ver.dataset.key, d = versionData[key];
+  if (!d) return;
+  const marked = tog.dataset.show === 'marked';
+  $('#proof-' + key).innerHTML = marked ? d.marked : d.clean;
+  const legend = $('#legend-' + key);
+  if (legend) legend.hidden = !marked;
+  $$('.toggle button', ver).forEach(b => b.setAttribute('aria-pressed', String(b === tog)));
+});
+
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  const prompt = promptEl.value.trim();
+  if (!prompt){
+    setStatus('Write or paste a prompt first.', true);
+    promptEl.focus();
+    return;
+  }
+  const mode = new FormData(form).get('mode');
+  runBtn.disabled = true;
+  runBtn.textContent = 'Shortening';
+  setStatus('Working. If a model is busy, the next one is tried.');
+  resultEl.innerHTML = skeleton();
+  resultEl.hidden = false;
+  try {
+    const data = await api(ENDPOINTS.shorten, postJson({ prompt, mode, model: $('#model').value, level: levelKey(), save: historyOn }));
+    renderResult(data);
+    setStatus('');
+    renderHistory();
+    resultEl.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+  } catch (err){
+    resultEl.hidden = true;
+    resultEl.innerHTML = '';
+    setStatus('Could not shorten the prompt. ' + (err.message || 'Something went wrong.'), true);
+  } finally {
+    runBtn.disabled = false;
+    runBtn.textContent = 'Shorten prompt';
+  }
+});
+
+/* ====================================================================
+   HISTORY PANEL
+==================================================================== */
+const MAKER_HIST_KEY = 'pf.maker.hist.v1';
+let runsCache = [];
+
+function getMakerRuns(){
+  try { return JSON.parse(store.get(MAKER_HIST_KEY) || '[]'); } catch { return []; }
+}
+function saveMakerRun(idea, totalTokens){ saveLocalRun(idea, totalTokens, totalTokens, 'maker'); }
+function saveLocalRun(text, tokensIn, tokensOut, mode){
+  if (!historyOn) return;
+  const runs = getMakerRuns();
+  runs.unshift({ id: Date.now(), created_at: new Date().toISOString(), prompt: String(text).slice(0, 2000), mode, original_tokens: tokensIn, best_tokens: tokensOut, fav: false, tags: [] });
+  // keep last 50
+  if (runs.length > 50) runs.length = 50;
+  store.set(MAKER_HIST_KEY, JSON.stringify(runs));
+}
+
+let allRuns = [], visibleRuns = [], histFilter = 'all', openKey = null;
+
+const cleanTags = raw => {
+  const out = [];
+  String(raw || '').split(',').forEach(part => {
+    const t = part.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '').slice(0, 24).replace(/^-+|-+$/g, '');
+    if (t && !out.includes(t) && out.length < 8) out.push(t);
+  });
+  return out;
+};
+function updateMakerRun(id, patch){
+  const runs = getMakerRuns();
+  const i = runs.findIndex(r => r.id === id);
+  if (i >= 0){ Object.assign(runs[i], patch); store.set(MAKER_HIST_KEY, JSON.stringify(runs)); }
+}
+
+async function renderHistory(){
+  let server = [], meta = {};
+  try {
+    server = ((await api(ENDPOINTS.history)).runs || []).filter(r => r.mode !== 'improve');
+    try { meta = (await api(ENDPOINTS.history + '/meta')).meta || {}; } catch { /* older server: no favourites or tags */ }
+  } catch (err){
+    allRuns = [];
+    $('#h-sum').textContent = '';
+    $('#runs').innerHTML = `<li class="runs-empty">Could not load history. ${esc(err.message)}</li>`;
+    return;
+  }
+  const fromServer = server.map(r => {
+    const m = meta[String(r.id)] || {};
+    return { ...r, key: 's' + r.id, source: 's', fav: Boolean(m.fav), tags: m.tags ? m.tags.split(',') : [] };
+  });
+  const fromMaker = getMakerRuns().map(r => ({ ...r, key: 'm' + r.id, source: 'm', fav: Boolean(r.fav), tags: Array.isArray(r.tags) ? r.tags : [] }));
+  allRuns = [...fromServer, ...fromMaker].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  drawRuns();
+}
+
+function runItem(r, i){
+  const when = new Date(r.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const text = r.prompt.length > 140 ? r.prompt.slice(0, 140) + '...' : r.prompt;
+  const meta = r.mode === 'maker'
+    ? fmt(r.best_tokens) + ' tokens built'
+    : fmt(r.original_tokens) + ' to ' + fmt(r.best_tokens) + ' tokens, ' + deltaLabel(r.original_tokens, r.best_tokens);
+  const note = [r.fav ? 'Favourite' : '', ...r.tags].filter(Boolean).join(', ');
+  const open = openKey === r.key;
+  const edit = open ? `<div class="run-edit">
+      <button class="linkbtn" type="button" data-fav="${i}">${r.fav ? 'Remove from favourites' : 'Add to favourites'}</button>
+      <form class="tag-form" data-tagform="${i}"><input type="text" value="${esc(r.tags.join(', '))}" maxlength="120" placeholder="Tags, separated by commas" aria-label="Tags, separated by commas"><button class="linkbtn" type="submit">Save</button></form>
+    </div>` : '';
+  return `<li class="run-item">
+    <button class="run" type="button" data-run="${i}" title="Load this prompt again">
+      <span class="run-text">${esc(text)}</span>
+      <span class="run-meta">${esc(meta)}</span>
+    </button>
+    ${note ? `<p class="run-tags">${esc(note)}</p>` : ''}
+    <div class="run-foot"><span>${esc(when)}, ${esc(MODE_LABEL[r.mode] || r.mode)}</span><button class="linkbtn" type="button" data-open="${i}" aria-expanded="${open}">${open ? 'Done' : 'Edit'}</button></div>
+    ${edit}
+  </li>`;
+}
+
+function drawRuns(){
+  const list = $('#runs');
+  const shorts = allRuns.filter(r => r.source === 's');
+  const saved = shorts.reduce((n, r) => n + Math.max(0, r.original_tokens - r.best_tokens), 0);
+  const cuts = shorts.filter(r => r.original_tokens > 0).map(r => Math.max(0, 1 - r.best_tokens / r.original_tokens) * 100);
+  const avg = cuts.length ? Math.round(cuts.reduce((a, b) => a + b, 0) / cuts.length) : 0;
+  $('#h-sum').textContent = allRuns.length
+    ? `${fmt(allRuns.length)} ${allRuns.length === 1 ? 'run' : 'runs'}, ${fmt(saved)} tokens saved, ${avg}% average cut.`
+    : 'Nothing saved yet.';
+
+  const q = $('#h-search').value.trim().toLowerCase();
+  visibleRuns = allRuns.filter(r => (histFilter === 'all' || r.fav)
+    && (!q || r.prompt.toLowerCase().includes(q) || r.tags.some(t => t.includes(q))));
+
+  if (!allRuns.length){
+    list.innerHTML = '<li class="runs-empty">Shorten a prompt or build one and it will be listed here.</li>';
+  } else if (!visibleRuns.length){
+    list.innerHTML = `<li class="runs-empty">${histFilter === 'fav' && !q ? 'No favourites yet. Use Edit under a run.' : 'No runs match that search.'}</li>`;
+  } else {
+    list.innerHTML = visibleRuns.map(runItem).join('');
+  }
+}
+
+$$('[data-hfilter]').forEach(btn => btn.addEventListener('click', () => {
+  histFilter = btn.dataset.hfilter;
+  $$('[data-hfilter]').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+  drawRuns();
+}));
+$('#h-search').addEventListener('input', drawRuns);
+
+async function toggleFav(run){
+  const next = !run.fav;
+  run.fav = next;
+  drawRuns();
+  if (run.source === 'm') return updateMakerRun(run.id, { fav: next });
+  try { await api(ENDPOINTS.history + '/' + run.id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fav: next }) }); }
+  catch { run.fav = !next; drawRuns(); }
+}
+async function saveTags(run, raw){
+  let tags = cleanTags(raw);
+  if (run.source === 'm') updateMakerRun(run.id, { tags });
+  else {
+    try {
+      const r = await api(ENDPOINTS.history + '/' + run.id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tags: tags.join(',') }) });
+      tags = r.tags ? r.tags.split(',') : [];
+    } catch { return; }
+  }
+  run.tags = tags;
+  drawRuns();
+}
+
+$('#runs').addEventListener('click', e => {
+  const favBtn = e.target.closest('[data-fav]');
+  if (favBtn) return void toggleFav(visibleRuns[Number(favBtn.dataset.fav)]);
+  const openBtn = e.target.closest('[data-open]');
+  if (openBtn){
+    const run = visibleRuns[Number(openBtn.dataset.open)];
+    openKey = openKey === run.key ? null : run.key;
+    drawRuns();
+    const input = $('.tag-form input');
+    if (openKey && input) input.focus();
+    return;
+  }
+  const btn = e.target.closest('[data-run]');
+  if (!btn) return;
+  const run = visibleRuns[Number(btn.dataset.run)];
+  if (!run) return;
+  let target = 'shorten';
+  if (run.mode === 'handoff'){
+    target = 'handoff';
+    $('#hf-doing').value = run.prompt;
+    saveHandoffDraft();
+  } else if (run.mode === 'maker'){
+    target = 'maker';
+    $('#b-idea').value = run.prompt;
+    saveDraft();
+  } else {
+    promptEl.value = run.prompt;
+    store.set('pf.draft.v1', run.prompt);
+    updateReadout();
+  }
+  if (location.hash !== '#' + target) location.hash = '#' + target; else closeSide();
+});
+$('#runs').addEventListener('submit', e => {
+  const form = e.target.closest('[data-tagform]');
+  if (!form) return;
+  e.preventDefault();
+  saveTags(visibleRuns[Number(form.dataset.tagform)], $('input', form).value);
+});
+$('#runs').addEventListener('keydown', e => {
+  if (e.key === 'Escape' && openKey){ openKey = null; drawRuns(); }
+});
+
+let clearArmed = 0;
+$('#clear').addEventListener('click', async e => {
+  const btn = e.currentTarget;
+  if (!clearArmed){
+    btn.textContent = 'Click again to clear everything';
+    clearArmed = setTimeout(() => { clearArmed = 0; btn.textContent = 'Clear history'; }, 3500);
+    return;
+  }
+  clearTimeout(clearArmed); clearArmed = 0;
+  btn.textContent = 'Clear history';
+  store.set(MAKER_HIST_KEY, '[]');
+  try { await api(ENDPOINTS.history, { method: 'DELETE' }); }
+  catch (err){ $('#runs').innerHTML = `<li class="runs-empty">Could not clear history. ${esc(err.message)}</li>`; return; }
+  renderHistory();
+});
+
+/* drawer on narrow screens */
+function openSide(){
+  document.body.classList.add('side-open');
+  $('#scrim').hidden = false;
+  $('#h-toggle').setAttribute('aria-expanded', 'true');
+  $('#side-close').focus();
+}
+function closeSide(){
+  document.body.classList.remove('side-open');
+  $('#scrim').hidden = true;
+  $('#h-toggle').setAttribute('aria-expanded', 'false');
+}
+const wide = window.matchMedia('(min-width:961px)');
+let sideHidden = store.get('pf.side.hidden') === 'true';
+function applySideHidden(){
+  document.body.classList.toggle('side-hidden', sideHidden);
+  const t = $('#h-toggle');
+  t.textContent = (sideHidden && wide.matches) ? 'Show history' : 'History';
+  if (wide.matches) t.setAttribute('aria-expanded', String(!sideHidden));
+}
+function setSideHidden(v){ sideHidden = v; store.set('pf.side.hidden', v ? 'true' : 'false'); applySideHidden(); }
+$('#side-hide').addEventListener('click', () => { setSideHidden(true); $('#h-toggle').focus(); });
+$('#h-toggle').addEventListener('click', () => {
+  if (wide.matches) return setSideHidden(!sideHidden);
+  document.body.classList.contains('side-open') ? closeSide() : openSide();
+});
+wide.addEventListener('change', applySideHidden);
+applySideHidden();
+$('#side-close').addEventListener('click', () => { closeSide(); $('#h-toggle').focus(); });
+$('#scrim').addEventListener('click', closeSide);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.classList.contains('side-open')) closeSide(); });
+
+/* ====================================================================
+   PROMPT MAKER
+==================================================================== */
+const BKEY = 'pf.maker.v1';
+const B_FIELDS = ['idea', 'frontend', 'backend', 'security'];
+let lastBuild = [];
+
+(function loadDraft(){
+  try {
+    const d = JSON.parse(store.get(BKEY) || '{}');
+    B_FIELDS.forEach(k => { if (typeof d[k] === 'string') $('#b-' + k).value = d[k]; });
+    if (typeof d.checklist === 'boolean') $('#b-common').checked = d.checklist;
+  } catch { /* empty or unreadable draft */ }
+})();
+function saveDraft(){
+  const d = { checklist: $('#b-common').checked };
+  B_FIELDS.forEach(k => { d[k] = $('#b-' + k).value; });
+  store.set(BKEY, JSON.stringify(d));
+}
+$('#b-form').addEventListener('input', saveDraft);
+$('#b-form').addEventListener('change', saveDraft);
+$$('#b-form textarea').forEach(t => t.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); $('#b-form').requestSubmit(); }
+}));
+
+function renderBuild(data){
+  lastBuild = data.prompts;
+  const body = data.prompts.map((p, i) => `<article class="ver">
+      <div class="ver-head"><h3>${esc(p.title)}<small>${fmt(p.chars)} characters, ${fmt(p.tokens)} tokens</small></h3></div>
+      <p class="proof">${esc(p.text)}</p>
+      <div class="ver-foot"><button class="linkbtn" type="button" data-bcopy="${i}">Copy</button></div>
+    </article>`).join('');
+
+  const notes = [];
+  if (data.missing && data.missing.length)
+    notes.push(`<p class="flag">Check before you use these. Items from your notes that are not in the prompts: ${data.missing.map(esc).join(', ')}.</p>`);
+  const used = data.models_used || [];
+  const tail = 'Read each prompt once before you send it. The server cannot check that it matches what you meant. Tokens counted with '
+    + (data.counter || 'the backend counter') + '.'
+    + (used.length ? ' Answered by ' + used.join(', ') + (data.model && used[0] !== data.model ? ' (switched automatically because ' + data.model + ' was busy).' : '.') : '');
+
+  $('#b-result').innerHTML = `<h2 class="res-title">${fmt(data.prompts.length)} ${data.prompts.length === 1 ? 'prompt' : 'prompts'}, ${fmt(data.total_tokens)} tokens in all.</h2>
+    <p class="lede" style="margin-top:12px">Your notes were ${fmt(data.notes_tokens)} tokens.</p>
+    <ol class="steps">
+      <li><span>Paste the context prompt once, at the start of a new Claude chat.</span></li>
+      <li><span>Send the frontend, backend and security prompts one at a time.</span></li>
+      <li><span>For fixes, say only what changed and ask for changed files only.</span></li>
+    </ol>
+    ${body}
+    <div class="ver-foot" style="margin-top:28px"><button class="linkbtn" type="button" id="b-copy-all">Copy all</button></div>
+    <div class="v-notes">${notes.join('')}</div>
+    <p class="fine">${esc(tail)}</p>`;
+  $('#b-result').hidden = false;
+}
+
+$('#b-result').addEventListener('click', e => {
+  const one = e.target.closest('[data-bcopy]');
+  if (one) return void flashCopy(one, (lastBuild[Number(one.dataset.bcopy)] || {}).text || '', 'Copy');
+  const all = e.target.closest('#b-copy-all');
+  if (all) flashCopy(all, lastBuild.map(p => p.text).join('\n\n'), 'Copy all');
+});
+
+$('#b-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const status = $('#b-status'), btn = $('#b-run');
+  const setB = (msg, err) => { status.textContent = msg || ''; status.classList.toggle('err', Boolean(err)); };
+  const body = { checklist: $('#b-common').checked, global: false, rules: '', model: $('#model-b').value };
+  B_FIELDS.forEach(k => { body[k] = $('#b-' + k).value.trim(); });
+  if (!body.idea){ setB('Describe your idea first.', true); $('#b-idea').focus(); return; }
+  if (!body.frontend && !body.backend && !body.security && !body.checklist){
+    setB('Fill in the frontend, backend or security box, or keep the checklist on.', true);
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = 'Building';
+  setB('Working. If a model is busy, the next one is tried.');
+  $('#b-result').innerHTML = skeleton();
+  $('#b-result').hidden = false;
+  try {
+    const buildData = await api(ENDPOINTS.build, postJson(body));
+    renderBuild(buildData);
+    setB('');
+    saveMakerRun(body.idea || body.frontend || body.backend || 'Prompt Maker run', buildData.total_tokens || 0);
+    renderHistory();
+    $('#b-result').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+  } catch (err){
+    $('#b-result').hidden = true;
+    $('#b-result').innerHTML = '';
+    setB('Could not build the prompts. ' + (err.message || 'Something went wrong.'), true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Build prompts';
+  }
+});
+
+/* ====================================================================
+   HANDOFF
+==================================================================== */
+const HKEY = 'pf.handoff.v1';
+const HF_MAX_FILES = 400, HF_MAX_FILE = 300000, HF_MAX_TOTAL = 7000000;
+const HF_SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', '__pycache__', '.venv', 'venv', '.next', 'coverage', '.idea', '.vscode', '.cache']);
+const HF_SKIP_FILES = /^(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|poetry\.lock|composer\.lock|pipfile\.lock|\.ds_store)$/i;
+const HF_OK_EXT = /\.(html?|css|scss|jsx?|tsx?|mjs|cjs|vue|svelte|py|json|sql|md|txt|ya?ml|toml|ini|cfg|sh|env|php|rb|go|java|cs|rs)$/i;
+const HF_OK_NAMES = /^(dockerfile|makefile|procfile|\.env.*)$/i;
+const hfFiles = new Map();   // name -> { name, content }
+let hfSkipped = { folders: 0, kind: 0, big: 0, limit: 0 };
+let lastHandoff = '';
+
+(function loadHandoffDraft(){
+  try {
+    const d = JSON.parse(store.get(HKEY) || '{}');
+    if (typeof d.doing === 'string') $('#hf-doing').value = d.doing;
+    if (typeof d.extra === 'string') $('#hf-extra').value = d.extra;
+    if (d.goal) { const r = $(`input[name="hfgoal"][value="${d.goal}"]`); if (r) r.checked = true; }
+    if (d.target && $('#hf-target').querySelector(`option[value="${d.target}"]`)) $('#hf-target').value = d.target;
+  } catch { /* empty or unreadable draft */ }
+})();
+function saveHandoffDraft(){
+  store.set(HKEY, JSON.stringify({
+    doing: $('#hf-doing').value, extra: $('#hf-extra').value,
+    goal: ($('input[name="hfgoal"]:checked') || {}).value || 'backend', target: $('#hf-target').value
+  }));
+}
+$('#hf-form').addEventListener('input', saveHandoffDraft);
+$('#hf-form').addEventListener('change', saveHandoffDraft);
+
+function hfTotal(){ let n = 0; hfFiles.forEach(f => { n += f.content.length; }); return n; }
+
+function drawHfFiles(){
+  const list = $('#hf-files');
+  if (!hfFiles.size){ list.innerHTML = ''; return; }
+  const rows = [...hfFiles.values()].sort((a, b) => a.name.localeCompare(b.name)).map(f =>
+    `<li><span class="fn">${esc(f.name)}</span><span class="fs">about ${fmt(roughTokens(f.content))} tokens</span><button class="linkbtn" type="button" data-rm="${esc(f.name)}">Remove</button></li>`).join('');
+  let tokens = 0; hfFiles.forEach(f => { tokens += roughTokens(f.content); });
+  list.innerHTML = rows + `<li class="files-foot" style="display:flex"><span>${fmt(hfFiles.size)} ${hfFiles.size === 1 ? 'file' : 'files'}, about ${fmt(tokens)} tokens</span><button class="linkbtn" type="button" id="hf-clear-files">Remove all</button></li>`;
+}
+function drawHfSkip(){
+  const s = hfSkipped, bits = [];
+  if (s.folders) bits.push(`${fmt(s.folders)} in skipped folders like node_modules`);
+  if (s.kind) bits.push(`${fmt(s.kind)} that are not code (images, lock files and so on)`);
+  if (s.big) bits.push(`${fmt(s.big)} over 300,000 characters`);
+  if (s.limit) bits.push(`${fmt(s.limit)} over the size limit`);
+  const el = $('#hf-skip');
+  el.classList.remove('err');
+  el.textContent = bits.length ? 'Skipped ' + bits.join(', ') + '.' : '';
+}
+
+async function addHfFile(path, getText, size){
+  const parts = path.split('/').filter(Boolean);
+  const base = parts[parts.length - 1] || '';
+  if (parts.slice(0, -1).some(p => HF_SKIP_DIRS.has(p))) { hfSkipped.folders++; return; }
+  if (HF_SKIP_FILES.test(base) || /\.min\.(js|css)$/i.test(base) || !(HF_OK_EXT.test(base) || HF_OK_NAMES.test(base))) { hfSkipped.kind++; return; }
+  if (size > HF_MAX_FILE) { hfSkipped.big++; return; }
+  if (!hfFiles.has(path) && hfFiles.size >= HF_MAX_FILES) { hfSkipped.limit++; return; }
+  let text;
+  try { text = await getText(); } catch { hfSkipped.kind++; return; }
+  if (text.length > HF_MAX_FILE) { hfSkipped.big++; return; }
+  if (text.includes('\u0000')) { hfSkipped.kind++; return; }
+  if (hfTotal() + text.length > HF_MAX_TOTAL) { hfSkipped.limit++; return; }
+  hfFiles.set(path, { name: path, content: text });
+}
+
+async function addHfList(files, fromFolder){
+  for (const f of files){
+    let path = f.webkitRelativePath || f.name;
+    if (fromFolder && f.webkitRelativePath) path = f.webkitRelativePath.split('/').slice(1).join('/') || f.name;
+    await addHfFile(path, () => f.text(), f.size);
+  }
+  drawHfFiles(); drawHfSkip();
+}
+
+function readEntry(entry, prefix){
+  return new Promise(resolve => {
+    if (entry.isFile){
+      entry.file(async f => { await addHfFile(prefix + entry.name, () => f.text(), f.size); resolve(); }, () => resolve());
+    } else if (entry.isDirectory){
+      if (HF_SKIP_DIRS.has(entry.name)){ hfSkipped.folders++; return resolve(); }
+      const reader = entry.createReader(), all = [];
+      const next = () => reader.readEntries(async batch => {
+        if (!batch.length){
+          for (const e of all) await readEntry(e, prefix + entry.name + '/');
+          return resolve();
+        }
+        all.push(...batch); next();
+      }, () => resolve());
+      next();
+    } else resolve();
+  });
+}
+
+const drop = $('#hf-drop');
+['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', async e => {
+  const items = [...(e.dataTransfer.items || [])];
+  if (items.length && items[0].webkitGetAsEntry){
+    const entries = items.map(i => i.webkitGetAsEntry()).filter(Boolean);
+    for (const en of entries) await readEntry(en, '');
+    drawHfFiles(); drawHfSkip();
+  } else {
+    await addHfList([...e.dataTransfer.files], false);
+  }
+});
+$('#hf-pick').addEventListener('click', () => $('#hf-input').click());
+$('#hf-pick-dir').addEventListener('click', () => $('#hf-input-dir').click());
+$('#hf-input').addEventListener('change', async e => { await addHfList([...e.target.files], false); e.target.value = ''; });
+$('#hf-input-dir').addEventListener('change', async e => { await addHfList([...e.target.files], true); e.target.value = ''; });
+$('#hf-paste-add').addEventListener('click', () => {
+  const name = $('#hf-paste-name').value.trim().replace(/\\/g, '/') || 'pasted.txt';
+  const text = $('#hf-paste').value;
+  if (!text.trim()) return;
+  if (text.length > HF_MAX_FILE){ hfSkipped.big++; drawHfSkip(); return; }
+  hfFiles.set(name, { name, content: text });
+  $('#hf-paste').value = ''; $('#hf-paste-name').value = '';
+  drawHfFiles();
+});
+$('#hf-files').addEventListener('click', e => {
+  const rm = e.target.closest('[data-rm]');
+  if (rm){ hfFiles.delete(rm.dataset.rm); drawHfFiles(); return; }
+  if (e.target.closest('#hf-clear-files')){ hfFiles.clear(); hfSkipped = { folders: 0, kind: 0, big: 0, limit: 0 }; drawHfFiles(); drawHfSkip(); }
+});
+
+function foundSection(title, items, open, plain){
+  if (!items || !items.length) return '';
+  const li = items.map(x => `<li${plain ? ' class="plain"' : ''}>${esc(x)}</li>`).join('');
+  return `<details${open ? ' open' : ''}><summary><span>${esc(title)}<small>${fmt(items.length)}</small></span></summary><ul>${li}</ul></details>`;
+}
+
+function renderHandoff(d){
+  lastHandoff = d.prompt.text;
+  const fileTokens = d.files.tokens, outTokens = d.prompt.tokens;
+  const w = Math.max(fileTokens, outTokens, 1);
+  const f = d.found;
+  const notes = [];
+  if (!d.ai) notes.push('<p class="flag">Gemini was not available, so the summary is your own notes. The contract below is still read from your code and is complete.</p>');
+  d.masked.forEach(m => notes.push(`<p class="flag">Masked ${fmt(m.count)} ${esc(m.type)}${m.count === 1 ? '' : 's'}. Nothing secret is in the prompt. Check your files anyway, and rotate any key that was ever pasted into a chat.</p>`));
+  (d.warnings || []).forEach(x => notes.push(`<p>${esc(x)}</p>`));
+  if (d.has_frontend && !d.has_backend) notes.push('<p>Only frontend files were found, so the contract is what the page calls. That is what the backend needs to match.</p>');
+  if (!f.api_calls.length && !f.routes.length) notes.push('<p class="flag">No API calls or routes were found. The prompt has your files and notes but no endpoint contract. If the code builds its URLs in a way the reader cannot follow, add a line about them under Anything else.</p>');
+  if (d.skipped_count) notes.push(`<p>${fmt(d.skipped_count)} ${d.skipped_count === 1 ? 'file was' : 'files were'} skipped on the server (${esc(d.skipped.slice(0, 3).map(s => s.name).join(', '))}${d.skipped_count > 3 ? ' and more' : ''}).</p>`);
+
+  const stackBits = Object.entries(f.stack || {}).map(([k, v]) => `${k}: ${v.join(', ')}`);
+  const fileRows = (f.files || []).map(x => `${x.name} (${x.role}, ${fmt(x.tokens)} tokens)`);
+  const sections = [
+    foundSection('API calls the frontend makes', f.api_calls, true),
+    foundSection('Backend routes already in your code', f.routes, false),
+    foundSection('Mismatches', f.mismatches, true, true),
+    foundSection('Forms and inputs', f.inputs, false),
+    foundSection('Pages', (f.views || []).map(v => '#' + v), false),
+    foundSection('Database tables', f.tables, false),
+    foundSection('Environment variables (names only)', f.env, false),
+    foundSection('Browser storage keys', f.storage, false),
+    foundSection('Stack', stackBits, false, true),
+    foundSection('Files', fileRows, false)
+  ].join('');
+
+  $('#hf-result').innerHTML = `<h2 class="res-title">${fmt(fileTokens)} tokens of files became a ${fmt(outTokens)} token prompt, ${deltaLabel(fileTokens, outTokens)}.</h2>
+    <div class="ledger">
+      <div class="l-row" data-w="100"><div class="l-name">Your files</div><div class="l-track"><div class="l-fill"></div></div><div class="l-num"><b>${fmt(fileTokens)}</b><span>tokens</span></div></div>
+      <div class="l-row best" data-w="${(outTokens / w * 100).toFixed(1)}"><div class="l-name">Handoff prompt</div><div class="l-track"><div class="l-fill"></div></div><div class="l-num"><b>${fmt(outTokens)}</b><span>tokens</span></div></div>
+    </div>
+    <ol class="steps">
+      <li><span>Open a new chat in the other AI.</span></li>
+      <li><span>Paste the prompt below as your first message.</span></li>
+      <li><span>If it asks for a file, send only that one file.</span></li>
+    </ol>
+    <article class="ver">
+      <div class="ver-head"><h3>Handoff prompt<small>${fmt(d.prompt.chars)} characters, ${fmt(outTokens)} tokens</small></h3></div>
+      <p class="proof">${esc(d.prompt.text)}</p>
+      <div class="ver-foot"><button class="linkbtn" type="button" id="hf-copy">Copy</button> <button class="linkbtn" type="button" id="hf-dl">Download as .md</button></div>
+    </article>
+    <div class="v-notes">${notes.join('')}</div>
+    <div class="found"><h2 class="sub" style="margin-top:28px">What was found</h2>${sections}</div>
+    <p class="fine">Endpoints, fields, files and variable names are read from your code by plain code, not guessed by AI. Field reads from responses are followed through helper functions as far as is practical, so check them against your code before you rely on them. Gemini only wrote the short summary, from your notes and an outline of file and function names. Your source code and any secrets were not sent to it. Tokens counted with ${esc(d.counter || 'the backend counter')}.${(d.models_used || []).length ? ' Answered by ' + esc(d.models_used.join(', ')) + '.' : ''}</p>`;
+  $('#hf-result').hidden = false;
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    $$('.l-row', $('#hf-result')).forEach(r => { $('.l-fill', r).style.width = r.dataset.w + '%'; });
+  }));
+}
+
+$('#hf-result').addEventListener('click', e => {
+  if (e.target.closest('#hf-copy')) return void flashCopy(e.target.closest('#hf-copy'), lastHandoff, 'Copy');
+  if (e.target.closest('#hf-dl')){
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([lastHandoff], { type: 'text/markdown' }));
+    a.download = 'handoff-prompt.md';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+});
+
+$('#hf-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const status = $('#hf-status'), btn = $('#hf-run');
+  const setH = (msg, err) => { status.textContent = msg || ''; status.classList.toggle('err', Boolean(err)); };
+  if (!hfFiles.size){ setH('Add at least one file first.', true); return; }
+  const doing = $('#hf-doing').value.trim();
+  if (!doing){ setH('Say what you were doing first. One or two lines is enough.', true); $('#hf-doing').focus(); return; }
+  const goal = ($('input[name="hfgoal"]:checked') || {}).value || 'backend';
+  btn.disabled = true;
+  btn.textContent = 'Reading your files';
+  setH('Reading the files and writing the summary. If a model is busy, the next one is tried.');
+  $('#hf-result').innerHTML = skeleton();
+  $('#hf-result').hidden = false;
+  try {
+    const data = await api(ENDPOINTS.handoff, postJson({
+      files: [...hfFiles.values()], doing, extra: $('#hf-extra').value.trim(), goal,
+      target_ai: $('#hf-target').value, model: $('#model-h').value
+    }));
+    renderHandoff(data);
+    setH('');
+    saveLocalRun(doing, data.files.tokens, data.prompt.tokens, 'handoff');
+    renderHistory();
+    $('#hf-result').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+  } catch (err){
+    $('#hf-result').hidden = true;
+    $('#hf-result').innerHTML = '';
+    setH('Could not build the handoff. ' + (err.message || 'Something went wrong.'), true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Build handoff prompt';
+  }
+});
+
+
+/* ====================================================================
+   LANGUAGE TEST
+==================================================================== */
+$('#sentences').innerHTML = SENTENCES.map(s => `<li><span>${esc(s)}</span></li>`).join('');
+let expFresh = false;
+
+$('#run-exp').addEventListener('click', async () => {
+  const btn = $('#run-exp');
+  btn.disabled = true;
+  btn.textContent = 'Counting';
+  try {
+    const data = await api(ENDPOINTS.experiment, postJson({ sentences: SENTENCES, fresh: expFresh, model: $('#model').value }));
+    expFresh = Boolean(data.cached);
+    const langs = data.languages;
+    const english = langs.find(l => l.name === 'English') || langs[0];
+    const max = Math.max(...langs.map(l => l.tokens));
+    const min = Math.min(...langs.map(l => l.tokens));
+
+    $('#exp-note').textContent = 'Tokens added up over the five sentences, counted with ' + data.counter + '.'
+      + (data.cached ? ' This is a saved result from an earlier run. Click again to count again.' : '');
+    $('#exp-rows').innerHTML = langs.map(l => `
+      <div class="lang${l.tokens === min ? ' win' : ''}" data-w="${(l.tokens / max * 100).toFixed(2)}">
+        <span class="lang-name">${esc(l.name)}</span>
+        <div class="l-track"><div class="l-fill"></div></div>
+        <span class="lang-val">${fmt(l.tokens)}<em>${(l.tokens / english.tokens).toFixed(2)} times English</em></span>
+      </div>`).join('');
+
+    const lowest = langs.find(l => l.tokens === min);
+    const highest = langs.find(l => l.tokens === max);
+    $('#exp-verdict').textContent = lowest === highest
+      ? 'Every language used the same number of tokens.'
+      : `${lowest.name} used the fewest tokens. ${highest.name} used ${(max / min).toFixed(2)} times as many.`;
+    $('#exp-out').hidden = false;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      $$('.lang').forEach(row => { $('.l-fill', row).style.width = row.dataset.w + '%'; });
+    }));
+  } catch (err){
+    $('#exp-note').textContent = 'Could not run the test. ' + (err.message || 'Something went wrong.');
+    $('#exp-rows').innerHTML = '';
+    $('#exp-verdict').textContent = '';
+    $('#exp-out').hidden = false;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Run the test';
+  }
+});
+
+/* ====================================================================
+   COMPRESSION LEVEL
+==================================================================== */
+const LEVELS = [
+  { key: 'light', name: 'Light', text: 'Removes filler only. Keeps your wording and structure, so there is little to check.' },
+  { key: 'medium', name: 'Medium', text: 'A balanced cut. A good start for most prompts.' },
+  { key: 'aggressive', name: 'Aggressive', text: 'Short fragments and as few tokens as possible. Read the result closely before you use it.' }
+];
+const levelEl = $('#level');
+const levelKey = () => LEVELS[Number(levelEl.value)].key;
+function showLevel(){
+  const i = Number(levelEl.value);
+  $('#level-desc').textContent = LEVELS[i].text;
+  levelEl.setAttribute('aria-valuetext', LEVELS[i].name);
+  $$('.level-marks span').forEach((s, n) => s.classList.toggle('on', n === i));
+}
+levelEl.addEventListener('input', () => { showLevel(); store.set('pf.level', levelEl.value); });
+{ const saved = store.get('pf.level'); if (['0', '1', '2'].includes(saved)) levelEl.value = saved; showLevel(); }
+
+/* ====================================================================
+   STATS
+==================================================================== */
+function dayLabel(iso, i, n){
+  const d = new Date(iso + 'T00:00:00');
+  return (i === 0 || i === n - 1 || d.getDate() === 1)
+    ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    : String(d.getDate());
+}
+
+function statsHtml(s){
+  const t = s.totals;
+  const localRuns = getMakerRuns();
+  const makerCount = localRuns.filter(r => r.mode === 'maker').length;
+  const handoffCount = localRuns.filter(r => r.mode === 'handoff').length;
+  if (!t.runs && !makerCount && !handoffCount){
+    return '<p class="verdict">No runs yet. Shorten a prompt and your stats will fill in here.</p>';
+  }
+  const stat = (label, value) => `<div class="stat-row"><span>${label}</span><b>${value}</b></div>`;
+  const max = Math.max(1, ...s.days.map(d => d.saved));
+  const top = s.days.reduce((a, d) => (d.saved > a.saved ? d : a), s.days[0]);
+  const bars = s.days.map(d => `<div class="bar-col" title="${esc(d.date)}: ${fmt(d.saved)} tokens saved, ${fmt(d.runs)} runs">
+      <span class="bar-val">${d.saved ? fmt(d.saved) : ''}</span><div class="bar-fill" data-h="${(d.saved / max * 88).toFixed(1)}"></div></div>`).join('');
+  const days = s.days.map((d, i) => `<span>${esc(dayLabel(d.date, i, s.days.length))}</span>`).join('');
+
+  const use = [
+    ['English only', s.modes.english], ['Mixed languages', s.modes.mixed], ['Both compared', s.modes.both],
+    ['Prompt Maker', makerCount], ['Handoff', handoffCount]
+  ];
+  const useMax = Math.max(1, ...use.map(u => u[1]));
+  const useRows = use.map(([name, n]) => `<div class="l-row" data-w="${(n / useMax * 100).toFixed(1)}">
+      <div class="l-name">${name}</div><div class="l-track"><div class="l-fill"></div></div>
+      <div class="l-num"><b>${fmt(n)}</b><span>${n === 1 ? 'run' : 'runs'}</span></div></div>`).join('');
+
+  const flow = t.tokens_in ? `<h2 class="sub">Before and after</h2>
+    <div class="ledger">
+      <div class="l-row" data-w="100"><div class="l-name">Your prompts</div><div class="l-track"><div class="l-fill"></div></div><div class="l-num"><b>${fmt(t.tokens_in)}</b><span>tokens</span></div></div>
+      <div class="l-row best" data-w="${(t.tokens_out / t.tokens_in * 100).toFixed(1)}"><div class="l-name">Shortened</div><div class="l-track"><div class="l-fill"></div></div><div class="l-num"><b>${fmt(t.tokens_out)}</b><span>tokens</span></div></div>
+    </div>` : '';
+
+  return `<div class="stat-rows">
+      ${stat('Tokens saved', fmt(t.tokens_saved))}
+      ${stat('Prompts shortened', fmt(t.shortens))}
+      ${stat('Average cut', t.avg_cut + '%')}
+      ${stat('Best cut', t.best_cut + '%')}
+      ${stat('Prompts built in the Maker', fmt(makerCount))}
+      ${stat('Handoff prompts built', fmt(handoffCount))}
+      ${stat('Favourites', fmt(t.favourites))}
+    </div>
+    <h2 class="sub">Tokens saved, last 14 days</h2>
+    <div class="chart" role="img" aria-label="Bar chart of tokens saved per day over the last 14 days. The most was ${fmt(top.saved)} tokens on ${esc(top.date)}.">${bars}</div>
+    <div class="chart-days" aria-hidden="true">${days}</div>
+    <p class="hint">${top.saved ? 'Most in one day: ' + fmt(top.saved) + ' tokens.' : 'Nothing saved in the last 14 days yet.'} Days use your local time.</p>
+    ${flow}
+    <h2 class="sub">What you use</h2>
+    <div class="ledger">${useRows}</div>
+    <p class="fine">Counted from the runs still in your history. Clear history resets these numbers. Prompt Maker and Handoff runs are counted from this browser only.</p>`;
+}
+
+async function loadStats(){
+  const out = $('#stats-body');
+  out.innerHTML = skeleton();
+  try {
+    const s = await api(ENDPOINTS.stats + '?tz=' + new Date().getTimezoneOffset());
+    out.innerHTML = statsHtml(s);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      $$('.bar-fill', out).forEach(b => { b.style.height = b.dataset.h + '%'; });
+      $$('.l-row', out).forEach(r => { $('.l-fill', r).style.width = r.dataset.w + '%'; });
+    }));
+  } catch (err){
+    out.innerHTML = `<p class="status err">Could not load stats. ${esc(err.message || 'Something went wrong.')}</p>`;
+  }
+}
+
+/* ====================================================================
+   HISTORY TOGGLE
+==================================================================== */
+const HIST_KEY = 'pf.history.on';
+let historyOn = store.get(HIST_KEY) !== 'false';
+
+function applyHistToggle(){
+  const cb = $('#hist-toggle');
+  if (cb) cb.checked = historyOn;
+  // If turned off, dim the stats section to signal it's paused
+  const side = $('#side');
+  if (side) side.classList.toggle('hist-off', !historyOn);
+}
+
+$('#hist-toggle').addEventListener('change', e => {
+  historyOn = e.target.checked;
+  store.set(HIST_KEY, historyOn ? 'true' : 'false');
+  applyHistToggle();
+});
+applyHistToggle();
+
+/* ====================================================================
+   ACCENT PICKER
+==================================================================== */
+const ACCENT_KEY = 'pf.accent';
+const ACCENTS = [
+  { name: 'Blue',    value: '#1b3f95' },
+  { name: 'Teal',    value: '#0e7b6e' },
+  { name: 'Forest',  value: '#2d6a2d' },
+  { name: 'Copper',  value: '#8b4a0e' },
+  { name: 'Crimson', value: '#8b1a1a' },
+  { name: 'Slate',   value: '#3c4f5e' },
+  { name: 'Violet',  value: '#5a2d82' },
+  { name: 'Ink',     value: '#161b20' },
+];
+
+function applyAccent(value){
+  document.documentElement.style.setProperty('--accent-base', value);
+  $$('.accent-swatch').forEach(s => s.classList.toggle('active', s.dataset.accent === value));
+}
+
+(function buildAccentRow(){
+  const row = $('#accent-row');
+  ACCENTS.forEach(a => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'accent-swatch';
+    btn.dataset.accent = a.value;
+    btn.title = a.name;
+    btn.style.background = a.value;
+    btn.addEventListener('click', () => {
+      store.set(ACCENT_KEY, a.value);
+      applyAccent(a.value);
+    });
+    row.appendChild(btn);
+  });
+  const saved = store.get(ACCENT_KEY) || '#1b3f95';
+  applyAccent(saved);
+})();
+
+(function palette(){
+  const btn = $('#pal-btn'), pop = $('#pal-pop');
+  const set = open => { pop.hidden = !open; btn.setAttribute('aria-expanded', String(open)); };
+  btn.addEventListener('click', e => { e.stopPropagation(); set(pop.hidden); });
+  document.addEventListener('click', e => { if (!pop.hidden && !e.target.closest('.palette')) set(false); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !pop.hidden){ set(false); btn.focus(); } });
+})();
+
+/* ====================================================================
+   MODEL PICKER AND SERVER STATUS
+==================================================================== */
+const MKEY = 'pf.model.v1';
+function fillModels(h){
+  const list = (h && h.models) || ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
+  const saved = store.get(MKEY) || '';
+  const pick = list.includes(saved) ? saved : ((h && h.model) || list[0]);
+  const html = list.map(m => `<option value="${esc(m)}"${m === pick ? ' selected' : ''}>${esc(m)}</option>`).join('');
+  $$('.model-select').forEach(sel => { sel.innerHTML = html; });
+}
+$$('.model-select').forEach(sel => sel.addEventListener('change', e => {
+  $$('.model-select').forEach(o => { o.value = e.target.value; });
+  store.set(MKEY, e.target.value);
+}));
+fillModels(null);
+
+function setHealth(kind, text){
+  const el = $('#health');
+  el.classList.toggle('ok', kind === 'ok');
+  el.classList.toggle('bad', kind === 'bad');
+  $('#health-text').textContent = text;
+}
+api(ENDPOINTS.health)
+  .then(h => { setHealth(h.gemini_configured ? 'ok' : 'bad', h.gemini_configured ? 'Gemini ready' : 'No API key set'); fillModels(h); })
+  .catch(() => setHealth('bad', 'Server offline'));
+
+/* ====================================================================
+   CURSOR DEPTH: letters swell near the pointer, shapes drift at three
+   depths, main buttons lean toward the pointer. Mouse only.
+==================================================================== */
+(function cursorDepth(){
+  if (reduceMotion || !window.matchMedia('(hover:hover) and (pointer:fine)').matches) return;
+  document.documentElement.classList.add('fx-on');
+
+  $$('#view-shorten .head, #view-maker .head, #view-handoff .head, #view-stats .head, #view-languages .head')
+    .forEach(head => head.insertAdjacentHTML('afterbegin', '<div class="depth" aria-hidden="true"><i></i><i></i><i></i></div>'));
+
+  $$('h1').forEach(h1 => {
+    const text = h1.textContent;
+    h1.setAttribute('aria-label', text);
+    h1.textContent = '';
+    text.split(' ').forEach((word, i, all) => {
+      const w = document.createElement('span');
+      w.className = 'word';
+      w.setAttribute('aria-hidden', 'true');
+      [...word].forEach(ch => { const s = document.createElement('span'); s.className = 'ch'; s.textContent = ch; w.appendChild(s); });
+      h1.appendChild(w);
+      if (i < all.length - 1) h1.appendChild(document.createTextNode(' '));
+    });
+  });
+
+  let mx = 0, my = 0, inside = false, raf = 0;
+  const state = new WeakMap();
+  const get = el => { let s = state.get(el); if (!s){ s = { a: 0, b: 0 }; state.set(el, s); } return s; };
+  const wide = () => window.innerWidth >= 1100;
+
+  function frame(){
+    raf = 0;
+    let moving = false;
+    const view = $('.view.is-active');
+    if (view && wide()){
+      const nx = inside ? mx / window.innerWidth - 0.5 : 0;
+      const ny = inside ? my / window.innerHeight - 0.5 : 0;
+
+      $$('.depth i', view).forEach((el, i) => {
+        const depth = [18, 36, 62][i] || 20, s = get(el);
+        const tx = -nx * depth * 2, ty = -ny * depth * 0.4;
+        s.a += (tx - s.a) * 0.09;
+        s.b += (ty - s.b) * 0.09;
+        el.style.transform = `translate3d(${s.a.toFixed(2)}px,${s.b.toFixed(2)}px,0)`;
+        if (Math.abs(tx - s.a) > 0.05 || Math.abs(ty - s.b) > 0.05) moving = true;
+      });
+
+      $$('h1 .ch', view).forEach(el => {
+        const r = el.getBoundingClientRect(), s = get(el);
+        const d = inside ? Math.hypot(r.left + r.width / 2 - mx, r.top + r.height / 2 - my) : 999;
+        const target = Math.max(0, 1 - d / 210);
+        s.a += (target - s.a) * 0.18;
+        el.style.fontWeight = String(Math.round(700 + 100 * s.a));
+        if (Math.abs(target - s.a) > 0.01) moving = true;
+      });
+
+      $$('.btn', view).forEach(el => {
+        const s = get(el);
+        let tx = 0, ty = 0;
+        if (inside && !el.disabled && el.offsetParent){
+          const r = el.getBoundingClientRect();
+          const dx = mx - (r.left + r.width / 2), dy = my - (r.top + r.height / 2);
+          if (Math.hypot(dx, dy) < 110 + r.width / 2){ tx = Math.max(-9, Math.min(9, dx * 0.2)); ty = Math.max(-6, Math.min(6, dy * 0.25)); }
+        }
+        s.a += (tx - s.a) * 0.18;
+        s.b += (ty - s.b) * 0.18;
+        el.style.transform = `translate(${s.a.toFixed(2)}px,${s.b.toFixed(2)}px)`;
+        if (Math.abs(tx - s.a) > 0.05 || Math.abs(ty - s.b) > 0.05) moving = true;
+      });
+    }
+    if (moving) raf = requestAnimationFrame(frame);
+  }
+  const kick = () => { if (!raf) raf = requestAnimationFrame(frame); };
+  window.addEventListener('pointermove', e => { mx = e.clientX; my = e.clientY; inside = true; kick(); }, { passive: true });
+  document.documentElement.addEventListener('mouseleave', () => { inside = false; kick(); });
+})();
+
+/* ====================================================================
+   LIQUID GLASS (after kube.io/blog/liquid-glass-css-svg)
+   A convex squircle bezel, refracted with Snell's law (air 1.0, glass 1.5),
+   turned into a displacement map and a specular rim image, then fed to an
+   SVG filter that backdrop-filter points at. Chromium only: other browsers
+   keep the plain blur from the CSS.
+==================================================================== */
+const glass = (() => {
+  const ua = navigator.userAgent;
+  if (!/Chrome\//.test(ua) || /CriOS|FxiOS/.test(ua)) return { on: false };
+
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('width', '0'); svg.setAttribute('height', '0');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden;pointer-events:none';
+  const defs = document.createElementNS(NS, 'defs');
+  svg.appendChild(defs);
+  document.body.appendChild(svg);
+
+  const N_GLASS = 1.5, SAMPLES = 127;
+  const surface = x => Math.pow(1 - Math.pow(1 - x, 4), 0.25);     // convex squircle
+
+  /* refraction magnitude across the bezel, 0 at the flat middle, 1 at the max */
+  const profile = (() => {
+    const out = [];
+    for (let i = 0; i < SAMPLES; i++){
+      const x = i / (SAMPLES - 1), d = 0.001;
+      const x1 = Math.max(0, x - d), x2 = Math.min(1, x + d);
+      const slope = (surface(x2) - surface(x1)) / (x2 - x1);
+      const t1 = Math.atan(Math.abs(slope));                          // angle of incidence
+      const t2 = Math.asin(Math.sin(t1) / N_GLASS);                   // Snell's law
+      out.push(Math.tan(t1 - t2) * (0.45 + surface(x)));
+    }
+    const max = Math.max(...out) || 1;
+    return out.map(v => v / max);
+  })();
+  const bezelAt = t => profile[Math.min(SAMPLES - 1, Math.max(0, Math.round(t * (SAMPLES - 1))))];
+
+  /* signed distance to a rounded rect, plus the outward normal */
+  function edge(px, py, hw, hh, r){
+    const qx = Math.abs(px) - (hw - r), qy = Math.abs(py) - (hh - r);
+    const sx = px < 0 ? -1 : 1, sy = py < 0 ? -1 : 1;
+    let nx, ny;
+    if (qx > 0 && qy > 0){ const l = Math.hypot(qx, qy) || 1; nx = sx * qx / l; ny = sy * qy / l; }
+    else if (qx > qy){ nx = sx; ny = 0; }
+    else { nx = 0; ny = sy; }
+    const dist = Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - r;
+    return { inside: -dist, nx, ny };
+  }
+
+  function maps(w, h, r, bezel, dpr){
+    const mk = (cw, ch) => { const c = document.createElement('canvas'); c.width = cw; c.height = ch; return c; };
+    /* displacement map at 1x: R = x shift, G = y shift, 128 means none */
+    const dc = mk(w, h), dx = dc.getContext('2d'), di = dx.createImageData(w, h);
+    for (let y = 0; y < h; y++){
+      for (let x = 0; x < w; x++){
+        const e = edge(x + 0.5 - w / 2, y + 0.5 - h / 2, w / 2, h / 2, r);
+        let vx = 0, vy = 0;
+        if (e.inside >= 0 && e.inside < bezel){
+          const m = bezelAt(e.inside / bezel);
+          vx = -e.nx * m; vy = -e.ny * m;                              // sample from further in
+        }
+        const i = (y * w + x) * 4;
+        di.data[i] = 128 + vx * 127; di.data[i + 1] = 128 + vy * 127; di.data[i + 2] = 128; di.data[i + 3] = 255;
+      }
+    }
+    dx.putImageData(di, 0, 0);
+    /* specular rim at device resolution, light from -60 degrees */
+    const W = Math.round(w * dpr), H = Math.round(h * dpr);
+    const sc = mk(W, H), sx = sc.getContext('2d'), si = sx.createImageData(W, H);
+    const lx = Math.cos(-Math.PI / 3), ly = Math.sin(-Math.PI / 3), rim = 2.4;
+    for (let y = 0; y < H; y++){
+      for (let x = 0; x < W; x++){
+        const e = edge((x + 0.5) / dpr - w / 2, (y + 0.5) / dpr - h / 2, w / 2, h / 2, r);
+        let a = 0;
+        if (e.inside >= -0.5 && e.inside < rim){
+          const face = Math.abs(e.nx * lx + e.ny * ly);
+          const fall = Math.min(1, (rim - e.inside) / rim);
+          a = Math.min(1, Math.pow(face, 1.4) * fall * 1.15) * 0.75;
+          if (e.inside < 0) a *= 1 + e.inside * 2;                    // soft outer edge
+        }
+        const i = (y * W + x) * 4;
+        si.data[i] = si.data[i + 1] = si.data[i + 2] = 255; si.data[i + 3] = Math.max(0, a) * 255;
+      }
+    }
+    sx.putImageData(si, 0, 0);
+    return { disp: dc.toDataURL('image/png'), spec: sc.toDataURL('image/png') };
+  }
+
+  let uid = 0;
+  function attach(el, opts){
+    const id = 'lg' + (++uid);
+    const f = document.createElementNS(NS, 'filter');
+    f.setAttribute('id', id);
+    f.setAttribute('filterUnits', 'userSpaceOnUse');
+    f.setAttribute('color-interpolation-filters', 'sRGB');
+    const part = (tag, attrs) => { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); f.appendChild(n); return n; };
+    part('feGaussianBlur', { in: 'SourceGraphic', stdDeviation: opts.blur, result: 'blur' });
+    const dispImg = part('feImage', { result: 'map', preserveAspectRatio: 'none' });
+    const disp = part('feDisplacementMap', { in: 'blur', in2: 'map', xChannelSelector: 'R', yChannelSelector: 'G', result: 'shift' });
+    part('feColorMatrix', { in: 'shift', type: 'saturate', values: String(opts.saturate), result: 'sat' });
+    const specImg = part('feImage', { result: 'spec', preserveAspectRatio: 'none' });
+    part('feBlend', { in: 'spec', in2: 'sat', mode: 'screen' });
+    defs.appendChild(f);
+
+    let key = '';
+    function build(){
+      const w = Math.round(el.offsetWidth), h = Math.round(el.offsetHeight);
+      if (w < 8 || h < 8) return;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const r = Math.min(h / 2, w / 2);
+      const bezel = Math.min(opts.bezel, r);
+      const k = [w, h, dpr].join('x');
+      if (k === key) return;
+      key = k;
+      const m = maps(w, h, r, bezel, dpr);
+      for (const n of [f.children[1], f.children[4]]){
+        n.setAttribute('x', '0'); n.setAttribute('y', '0');
+        n.setAttribute('width', String(w)); n.setAttribute('height', String(h));
+      }
+      dispImg.setAttribute('href', m.disp);
+      specImg.setAttribute('href', m.spec);
+      disp.setAttribute('scale', String((bezel * opts.refraction).toFixed(2)));
+      f.setAttribute('x', '0'); f.setAttribute('y', '0');
+      f.setAttribute('width', String(w)); f.setAttribute('height', String(h));
+      el.style.backdropFilter = 'url(#' + id + ')';
+      el.style.webkitBackdropFilter = 'url(#' + id + ')';
+      el.classList.add('glass-on');
+    }
+    let q = 0;
+    const queue = () => { if (!q) q = requestAnimationFrame(() => { q = 0; build(); }); };
+    if ('ResizeObserver' in window) new ResizeObserver(queue).observe(el);
+    window.addEventListener('resize', queue);
+    queue();
+  }
+
+  return { on: true, attach };
+})();
+
+if (glass.on){
+  $$('.btn.glass').forEach(el => glass.attach(el, { bezel: 18, refraction: 1.1, blur: 0.4, saturate: 1.8 }));
+  $$('.switch').forEach(el => glass.attach(el, { bezel: 16, refraction: 1.0, blur: 0.4, saturate: 1.7 }));
+}
+
+/* ====================================================================
+   ROUTER
+==================================================================== */
+const TITLES = { shorten: 'Prompt Shortener', maker: 'Prompt Maker', handoff: 'Handoff', stats: 'Stats', languages: 'Language test', terms: 'Terms', privacy: 'Privacy' };
+const ALIAS = { compress: 'shorten', builder: 'maker', experiment: 'languages', history: 'shorten', presets: 'shorten' };
+
+function route(){
+  const raw = location.hash.slice(1);
+  const h = ALIAS[raw] || raw;
+  const name = TITLES[h] ? h : 'shorten';
+  Object.keys(TITLES).forEach(v => $('#view-' + v).classList.toggle('is-active', v === name));
+  $$('.switch a').forEach(a => {
+    if (a.dataset.view === name) a.setAttribute('aria-current', 'page');
+    else a.removeAttribute('aria-current');
+  });
+  document.body.dataset.bg = ({ shorten: 1, maker: 1, handoff: 1 })[name] ? name : 'shorten';
+  document.title = TITLES[name] + ' | PromptForge';
+  closeSide();
+  applySideHidden();
+  window.scrollTo(0, 0);
+  if (name === 'stats') loadStats();
+  if (raw === 'history'){
+    if (wide.matches) setSideHidden(false);
+    else openSide();
+  }
+}
+window.addEventListener('hashchange', route);
+
+promptEl.value = store.get('pf.draft.v1') || '';
+updateReadout();
+renderHistory();
+route();
+})();
+</script>
+</body>
+</html>

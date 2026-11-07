@@ -1,0 +1,4 @@
+.env
+psts.db
+__pycache__/
+.venv/
