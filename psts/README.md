@@ -82,7 +82,7 @@ Gemini is told to answer in a fixed JSON shape, so it cannot add chatter around 
 
 - A rewrite only counts if it uses fewer tokens than your original. If it does not, the server asks once more, and if that fails too, your original is shown unchanged.
 - Numbers, links, emails, quoted text and code from your prompt must still be in the rewrite. If one is missing the server asks again and flags it on the page if it is still missing.
-- Mixed languages: Gemini writes 3 candidates, the server counts each one with the OpenAI tokenizer and shows the cheapest that passes. A second Gemini call checks that each candidate kept every idea, and candidates that lost meaning are dropped or retried. If none beats English, Gemini is shown the real counts and tries again (up to 3 rounds). If every candidate loses a number, link or piece of code, the English version is shown instead.
+- Mixed languages: Gemini writes 3 candidates, the server counts each one with the OpenAI tokenizer and shows the cheapest that passes. A second Gemini call checks that each candidate kept every idea, and candidates that lost meaning are dropped or retried. If none beats English, Gemini is shown the real counts and tries again (up to 3 rounds). The mixed section always shows a mixed-language result, never the English one. If every candidate loses a number, link or piece of code, the one that lost the least is shown and the missing items are flagged.
 
 The server cannot prove the meaning is identical. Read the shortened prompt once before you use it.
 
@@ -97,7 +97,7 @@ Gemini 3.8 runs first and Gemini 3.6 is next. If both fail, PromptForge tries th
 - OpenRouter: https://openrouter.ai/keys
 - Mistral: https://console.mistral.ai
 
-Add the key to `.env` (for example `GROQ_API_KEY=...`) and restart. The result says which model answered. Each backup has a default model (see `BACKUPS` in `features.py`), and you can change it with `GROQ_MODEL`, `CEREBRAS_MODEL`, `OPENROUTER_MODEL` or `MISTRAL_MODEL` in `.env`. Free limits and model names change, so check the provider's page if one stops working. Backups are not in the model dropdown, they only step in when Gemini fails.
+Add the key to `.env` (for example `GROQ_API_KEY=...`) and restart. To check that a backup works, open http://127.0.0.1:8000/backup-check. It tests each backup and shows the exact error if one fails. If a backup's default model has been retired, PromptForge asks the provider which models are live and picks one automatically. The result says which model answered. Each backup has a default model (see `BACKUPS` in `features.py`), and you can change it with `GROQ_MODEL`, `CEREBRAS_MODEL`, `OPENROUTER_MODEL` or `MISTRAL_MODEL` in `.env`. Free limits and model names change, so check the provider's page if one stops working. Backups are not in the model dropdown, they only step in when Gemini fails.
 
 ## Look and feel
 

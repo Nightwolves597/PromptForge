@@ -58,13 +58,13 @@
 
 /* Per-tab background pictures, cross-faded, with a dark scrim for reading */
 .bgs{transform:translateZ(0);position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;background:#050810}
-.bgs i{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;transition:opacity .7s ease}
+.bgs i{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;transform:scale(1.07);will-change:opacity,transform;transition:opacity 1.3s cubic-bezier(.4,0,.2,1),transform 2.6s cubic-bezier(.2,.7,.2,1)}
 .bgs i[data-k="shorten"]{background-image:url(/static/bg/shorten.jpg)}
 .bgs i[data-k="maker"]{background-image:url(/static/bg/maker.jpg)}
 .bgs i[data-k="handoff"]{background-image:url(/static/bg/handoff.jpg)}
 body[data-bg="shorten"] .bgs i[data-k="shorten"],
 body[data-bg="maker"] .bgs i[data-k="maker"],
-body[data-bg="handoff"] .bgs i[data-k="handoff"]{opacity:1}
+body[data-bg="handoff"] .bgs i[data-k="handoff"]{opacity:1;transform:scale(1)}
 .bgs::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(4,6,14,.50),rgba(4,6,14,.66))}
 
 *{box-sizing:border-box;margin:0}
@@ -438,7 +438,7 @@ body.ai-busy .morph{opacity:1;transform:scale(1)}
 @keyframes morph-b{0%,100%{transform:translate(36px,0)}25%{transform:translate(10px,-36px)}50%{transform:translate(-30px,-8px)}75%{transform:translate(-8px,34px)}}
 @keyframes morph-c{0%,100%{transform:translate(-34px,12px)}30%{transform:translate(-6px,-34px)}60%{transform:translate(34px,-6px)}}
 @keyframes morph-d{0%,100%{transform:translate(4px,38px)}35%{transform:translate(38px,10px)}70%{transform:translate(-28px,-24px)}}
-@media (prefers-reduced-motion:reduce){.morph i{animation-duration:12s}}
+@media (prefers-reduced-motion:reduce){.morph i{animation-duration:12s}.bgs i{transform:none;transition:opacity .4s}}
 @media (max-width:640px){.morph{right:14px;bottom:14px;width:100px;height:100px;zoom:.8}}
 
 /* dotted page titles */
@@ -2007,6 +2007,12 @@ api(ENDPOINTS.health)
    SVG filter that backdrop-filter points at. Chromium only: other browsers
    keep the plain blur from the CSS.
 ==================================================================== */
+/* decode the wallpapers up front so switching tabs never waits on an image */
+['shorten', 'maker', 'handoff'].forEach(k => ['', '-blur'].forEach(sfx => {
+  const im = new Image(); im.src = '/static/bg/' + k + sfx + '.jpg';
+  if (im.decode) im.decode().catch(() => {});
+}));
+
 const glass = (() => {
   const ua = navigator.userAgent;
   if (!/Chrome\//.test(ua) || /CriOS|FxiOS/.test(ua)) return { on: false };
