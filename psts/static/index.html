@@ -328,7 +328,7 @@ ins{color:var(--accent);text-decoration:underline;text-decoration-thickness:2px;
 .level input::-moz-range-track{height:4px;background:var(--ink)}
 .level input::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:28px;margin-top:-12px;background:var(--accent);border:1px solid var(--ink);border-radius:var(--r)}
 .level input::-moz-range-thumb{width:18px;height:26px;background:var(--accent);border:1px solid var(--ink);border-radius:var(--r)}
-.level-marks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:6px;font-size:.875rem;font-weight:700;color:var(--mute)}
+.level-marks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin-top:6px;font-size:.875rem;font-weight:700;color:var(--mute)}
 .level-marks span:nth-child(2){text-align:center}
 .level-marks span:last-child{text-align:right}
 .level-marks .on{color:var(--accent)}
@@ -403,7 +403,10 @@ ins{color:var(--accent);text-decoration:underline;text-decoration-thickness:2px;
 .btn.ghost{color:#fff;font-weight:600}
 .btn.ghost:hover:not(:disabled){background:rgba(255,255,255,.16);color:#fff}
 /* big surfaces skip the live backdrop blur (the picture behind is already dark and smooth), which is what kept scrolling smooth */
-.sheet,.drop,.proof{-webkit-backdrop-filter:none;backdrop-filter:none;background-color:rgba(10,14,30,.52)}
+.sheet,.drop,.proof{-webkit-backdrop-filter:none;backdrop-filter:none;background-color:transparent;background-image:linear-gradient(rgba(10,14,30,.40),rgba(10,14,30,.40)),var(--blur,none);background-attachment:scroll,fixed;background-size:auto,cover;background-position:0 0,center}
+body[data-bg="shorten"]{--blur:url(/static/bg/shorten-blur.jpg)}
+body[data-bg="maker"]{--blur:url(/static/bg/maker-blur.jpg)}
+body[data-bg="handoff"]{--blur:url(/static/bg/handoff-blur.jpg)}
 textarea{font-family:var(--sans)}
 .modes{gap:6px;padding:6px}
 .modes label + label{border:0}
@@ -421,6 +424,26 @@ textarea{font-family:var(--sans)}
 .mark .a{fill:color-mix(in srgb,var(--accent) 45%,#fff)}
 .mark .b{fill:#fff}
 @media (max-width:640px){.mark svg{height:19px}}
+
+/* liquid morph shown while the AI is working */
+.morph{position:fixed;right:30px;bottom:30px;width:130px;height:130px;z-index:40;pointer-events:none;opacity:0;transform:scale(.5);transition:opacity .4s ease,transform .5s cubic-bezier(.2,.9,.3,1.2);filter:drop-shadow(0 10px 22px rgba(0,0,0,.4))}
+body.ai-busy .morph{opacity:1;transform:scale(1)}
+.morph .blobs{position:absolute;inset:0;filter:url(#goo)}
+.morph i{position:absolute;left:50%;top:50%;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,color-mix(in srgb,var(--accent) 70%,#fff) 35%,var(--accent) 70%,#7a5cff 100%);animation:morph-a 3.4s ease-in-out infinite}
+.morph i:nth-child(1){width:54px;height:54px;margin:-27px}
+.morph i:nth-child(2){width:38px;height:38px;margin:-19px;animation-name:morph-b;animation-duration:2.9s}
+.morph i:nth-child(3){width:30px;height:30px;margin:-15px;animation-name:morph-c;animation-duration:3.8s}
+.morph i:nth-child(4){width:24px;height:24px;margin:-12px;animation-name:morph-d;animation-duration:2.5s}
+@keyframes morph-a{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(12px,-10px) scale(1.15)}66%{transform:translate(-10px,12px) scale(.9)}}
+@keyframes morph-b{0%,100%{transform:translate(36px,0)}25%{transform:translate(10px,-36px)}50%{transform:translate(-30px,-8px)}75%{transform:translate(-8px,34px)}}
+@keyframes morph-c{0%,100%{transform:translate(-34px,12px)}30%{transform:translate(-6px,-34px)}60%{transform:translate(34px,-6px)}}
+@keyframes morph-d{0%,100%{transform:translate(4px,38px)}35%{transform:translate(38px,10px)}70%{transform:translate(-28px,-24px)}}
+@media (prefers-reduced-motion:reduce){.morph i{animation-duration:12s}}
+@media (max-width:640px){.morph{right:14px;bottom:14px;width:100px;height:100px;zoom:.8}}
+
+/* dotted page titles */
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+h1 canvas.dots{display:block;max-width:100%}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none !important;transition:none !important}
 }
@@ -428,6 +451,10 @@ textarea{font-family:var(--sans)}
 </head>
 
 <body data-bg="shorten">
+<div class="morph" aria-hidden="true">
+  <svg width="0" height="0" style="position:absolute"><defs><filter id="goo" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB"><feGaussianBlur in="SourceGraphic" stdDeviation="7" result="b"/><feColorMatrix in="b" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -9"/></filter></defs></svg>
+  <div class="blobs"><i></i><i></i><i></i><i></i></div>
+</div>
 <div class="bgs" aria-hidden="true"><i data-k="shorten"></i><i data-k="maker"></i><i data-k="handoff"></i></div>
 
 <header class="bar">
@@ -510,8 +537,8 @@ textarea{font-family:var(--sans)}
         <fieldset>
           <legend class="lab">Compression level</legend>
           <div class="level">
-            <input type="range" id="level" name="level" min="0" max="2" step="1" value="1" aria-describedby="level-desc">
-            <div class="level-marks" aria-hidden="true"><span>Light</span><span>Medium</span><span>Aggressive</span></div>
+            <input type="range" id="level" name="level" min="0" max="1" step="1" value="0" aria-describedby="level-desc">
+            <div class="level-marks" aria-hidden="true"><span>Normal</span><span>Aggressive</span></div>
           </div>
           <p class="hint" id="level-desc"></p>
         </fieldset>
@@ -829,7 +856,15 @@ function deltaLabel(base, tokens){
   return (d < 0 ? MINUS : '+') + Math.abs(d) + '%';
 }
 
+let aiPending = 0;
+const AI_PATH = /^\/(shorten|build|handoff|testlive|experiment)/;
 async function api(path, options){
+  const ai = AI_PATH.test(String(path));
+  if (ai){ aiPending++; document.body.classList.add('ai-busy'); }
+  try { return await apiRaw(path, options); }
+  finally { if (ai && --aiPending <= 0){ aiPending = 0; document.body.classList.remove('ai-busy'); } }
+}
+async function apiRaw(path, options){
   let res;
   try { res = await fetch(path, options); }
   catch { throw new Error('Could not reach the server. Check that app.py is running.'); }
@@ -1721,9 +1756,8 @@ $('#run-exp').addEventListener('click', async () => {
    COMPRESSION LEVEL
 ==================================================================== */
 const LEVELS = [
-  { key: 'light', name: 'Light', text: 'Removes filler only. Keeps your wording and structure, so there is little to check.' },
-  { key: 'medium', name: 'Medium', text: 'A balanced cut. A good start for most prompts.' },
-  { key: 'aggressive', name: 'Aggressive', text: 'Short fragments and as few tokens as possible. Read the result closely before you use it.' }
+  { key: 'medium', name: 'Normal', text: 'Removes filler and repeated points. Keeps every idea and detail.' },
+  { key: 'aggressive', name: 'Aggressive', text: 'Cuts repetition and overlap harder and tightens the wording. Still keeps every idea and requirement.' }
 ];
 const levelEl = $('#level');
 const levelKey = () => LEVELS[Number(levelEl.value)].key;
@@ -1733,8 +1767,8 @@ function showLevel(){
   levelEl.setAttribute('aria-valuetext', LEVELS[i].name);
   $$('.level-marks span').forEach((s, n) => s.classList.toggle('on', n === i));
 }
-levelEl.addEventListener('input', () => { showLevel(); store.set('pf.level', levelEl.value); });
-{ const saved = store.get('pf.level'); if (['0', '1', '2'].includes(saved)) levelEl.value = saved; showLevel(); }
+levelEl.addEventListener('input', () => { showLevel(); store.set('pf.level2', levelEl.value); });
+{ const saved = store.get('pf.level2'); if (['0', '1'].includes(saved)) levelEl.value = saved; showLevel(); }
 
 /* ====================================================================
    STATS
@@ -1883,7 +1917,7 @@ function applyAccent(value){
 ==================================================================== */
 const MKEY = 'pf.model.v1';
 function fillModels(h){
-  const list = (h && h.models) || ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
+  const list = (h && h.models) || ['gemini-3.8-flash', 'gemini-3.6-flash'];
   const saved = store.get(MKEY) || '';
   const pick = list.includes(saved) ? saved : ((h && h.model) || list[0]);
   const html = list.map(m => `<option value="${esc(m)}"${m === pick ? ' selected' : ''}>${esc(m)}</option>`).join('');
@@ -1916,20 +1950,6 @@ api(ENDPOINTS.health)
   $$('#view-shorten .head, #view-maker .head, #view-handoff .head, #view-stats .head, #view-languages .head')
     .forEach(head => head.insertAdjacentHTML('afterbegin', '<div class="depth" aria-hidden="true"><i></i><i></i><i></i></div>'));
 
-  $$('h1').forEach(h1 => {
-    const text = h1.textContent;
-    h1.setAttribute('aria-label', text);
-    h1.textContent = '';
-    text.split(' ').forEach((word, i, all) => {
-      const w = document.createElement('span');
-      w.className = 'word';
-      w.setAttribute('aria-hidden', 'true');
-      [...word].forEach(ch => { const s = document.createElement('span'); s.className = 'ch'; s.textContent = ch; w.appendChild(s); });
-      h1.appendChild(w);
-      if (i < all.length - 1) h1.appendChild(document.createTextNode(' '));
-    });
-  });
-
   let mx = 0, my = 0, inside = false, raf = 0;
   const state = new WeakMap();
   const get = el => { let s = state.get(el); if (!s){ s = { a: 0, b: 0 }; state.set(el, s); } return s; };
@@ -1952,13 +1972,11 @@ api(ENDPOINTS.health)
         if (Math.abs(tx - s.a) > 0.05 || Math.abs(ty - s.b) > 0.05) moving = true;
       });
 
-      $$('h1 .ch', view).forEach(el => {
-        const r = el.getBoundingClientRect(), s = get(el);
-        const d = inside ? Math.hypot(r.left + r.width / 2 - mx, r.top + r.height / 2 - my) : 999;
-        const target = Math.max(0, 1 - d / 210);
-        s.a += (target - s.a) * 0.18;
-        el.style.fontWeight = String(Math.round(700 + 100 * s.a));
-        if (Math.abs(target - s.a) > 0.01) moving = true;
+      $$('h1 canvas.dots', view).forEach(c => {
+        if (!c._draw) return;
+        const r = c.getBoundingClientRect();
+        const close = inside && mx > r.left - 160 && mx < r.right + 160 && my > r.top - 160 && my < r.bottom + 160;
+        if (close || c._hot){ c._hot = c._draw(mx, my, close); if (c._hot) moving = true; }
       });
 
       $$('.btn', view).forEach(el => {
@@ -2171,6 +2189,90 @@ if (glass.on){
 })();
 
 /* ====================================================================
+   DOTTED TITLES: each h1 is drawn as round dots, sampled from the text
+==================================================================== */
+const dotTitles = (() => {
+  const F = 17;                                   // sampling size: dots per em
+  const off = document.createElement('canvas');
+  const octx = off.getContext('2d', { willReadFrequently: true });
+  const cache = new Map();
+
+  function sample(text, family){
+    const key = family + '|' + text;
+    if (cache.has(key)) return cache.get(key);
+    const font = '700 ' + F + 'px ' + family;
+    octx.font = font;
+    const w = Math.ceil(octx.measureText(text).width) + 4, h = Math.ceil(F * 1.6);
+    off.width = w; off.height = h;
+    octx.font = font; octx.fillStyle = '#fff'; octx.textBaseline = 'alphabetic';
+    octx.fillText(text, 2, Math.round(F * 1.15));
+    const d = octx.getImageData(0, 0, w, h).data, pts = [];
+    let x0 = w, x1 = 0, y0 = h, y1 = 0;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++){
+      if (d[(y * w + x) * 4 + 3] > 120){ pts.push([x, y]); if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    }
+    const out = { pts: pts.map(([x, y]) => [x - x0, y - y0]), cols: x1 - x0 + 1, rows: y1 - y0 + 1 };
+    cache.set(key, out);
+    return out;
+  }
+
+  function build(h1){
+    const text = h1.dataset.text || h1.textContent.trim();
+    h1.dataset.text = text;
+    let cv = h1.querySelector('canvas.dots');
+    if (!cv){
+      h1.textContent = '';
+      const sr = document.createElement('span'); sr.className = 'sr'; sr.textContent = text;
+      cv = document.createElement('canvas'); cv.className = 'dots'; cv.setAttribute('aria-hidden', 'true');
+      h1.append(sr, cv);
+    }
+    const avail = h1.clientWidth;
+    if (!avail) return;                           // hidden view, built when it opens
+    const cs = getComputedStyle(h1);
+    const s = sample(text, getComputedStyle(document.body).fontFamily);
+    if (!s.pts.length) return;
+    const pitch = Math.min(parseFloat(cs.fontSize) / F, (avail - 2) / s.cols);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const W = Math.ceil(s.cols * pitch) + 2, H = Math.ceil(s.rows * pitch) + 2;
+    const key = [text, W, H, dpr, cs.color].join('|');
+    if (cv._key === key){ return; }
+    cv._key = key;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    cv.style.width = W + 'px'; cv.style.height = H + 'px';
+    const ctx = cv.getContext('2d');
+    const base = cs.color, accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#8aa0e6';
+    const r = pitch * 0.42;
+    cv._draw = (mx, my, on) => {
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, W, H);
+      const rect = on ? cv.getBoundingClientRect() : null;
+      let near = false;
+      ctx.fillStyle = base;
+      ctx.beginPath();
+      const hot = [];
+      for (const [x, y] of s.pts){
+        const px = x * pitch + pitch / 2 + 1, py = y * pitch + pitch / 2 + 1;
+        let t = 0;
+        if (rect){ t = Math.max(0, 1 - Math.hypot(rect.left + px - mx, rect.top + py - my) / 150); }
+        if (t > 0.04){ hot.push([px, py, t]); near = true; }
+        else { ctx.moveTo(px + r, py); ctx.arc(px, py, r, 0, 6.2832); }
+      }
+      ctx.fill();
+      ctx.fillStyle = accent;
+      for (const [px, py, t] of hot){ ctx.beginPath(); ctx.arc(px, py, r * (1 + 0.55 * t), 0, 6.2832); ctx.fill(); }
+      return near;
+    };
+    cv._draw(0, 0, false);
+  }
+
+  const rebuild = () => $$('h1').forEach(build);
+  let t = 0;
+  window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(rebuild, 120); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { cache.clear(); $$('h1 canvas.dots').forEach(c => { c._key = ''; }); rebuild(); });
+  return { rebuild };
+})();
+
+/* ====================================================================
    ROUTER
 ==================================================================== */
 const TITLES = { shorten: 'Prompt Shortener', maker: 'Prompt Maker', handoff: 'Handoff', stats: 'Stats', languages: 'Language test', terms: 'Terms', privacy: 'Privacy' };
@@ -2187,6 +2289,7 @@ function route(){
   });
   document.body.dataset.bg = ({ shorten: 1, maker: 1, handoff: 1 })[name] ? name : 'shorten';
   document.title = TITLES[name] + ' | PromptForge';
+  requestAnimationFrame(dotTitles.rebuild);
   closeSide();
   applySideHidden();
   window.scrollTo(0, 0);
